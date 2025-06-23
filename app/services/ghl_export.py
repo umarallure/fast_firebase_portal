@@ -25,8 +25,20 @@ class GHLClient:
             logger.error(f"Pipeline fetch failed: {str(e)}")
             return []
 
-    async def get_opportunities(self, pipeline_id: str, pipeline_name: str) -> List[Dict[str, Any]]:
-        """Fetch all opportunities for a pipeline with pagination"""
+    async def get_pipeline_stages(self, pipeline_id: str) -> Dict[str, str]:
+        """Fetch all stages for a pipeline and return a mapping of stage ID to stage name"""
+        try:
+            response = await self.client.get(f"{self.base_url}/pipelines/{pipeline_id}")
+            response.raise_for_status()
+            data = response.json()
+            stages = data.get("stages", [])
+            return {stage["id"]: stage["name"] for stage in stages}
+        except httpx.HTTPError as e:
+            logger.error(f"Stage fetch failed for pipeline {pipeline_id}: {str(e)}")
+            return {}
+
+    async def get_opportunities(self, pipeline_id: str, pipeline_name: str, stage_map: Dict[str, str]) -> List[Dict[str, Any]]:
+        """Fetch all opportunities for a pipeline with pagination and include stage name"""
         opportunities = []
         params = {"limit": 100}
         page = 1
@@ -61,11 +73,11 @@ class GHLClient:
                 logger.error(f"Opportunity fetch failed for {pipeline_id}: {str(e)}")
                 break
 
-        return [self.format_opportunity(opp, pipeline_name) for opp in opportunities]
+        return [self.format_opportunity(opp, pipeline_name, stage_map) for opp in opportunities]
 
     @staticmethod
-    def format_opportunity(opp: Dict[str, Any], pipeline_name: str) -> Dict[str, Any]:
-        """Format opportunity data into standardized schema"""
+    def format_opportunity(opp: Dict[str, Any], pipeline_name: str, stage_map: Dict[str, str]) -> Dict[str, Any]:
+        """Format opportunity data into standardized schema, using stage name instead of stage ID"""
         contact = opp.get("contact", {})
         def parse_date(date_str): return datetime.fromisoformat(date_str[:-1]) if date_str else None
         def days_since(dt): return (datetime.now() - dt).days if dt else None
@@ -73,15 +85,17 @@ class GHLClient:
         created = parse_date(opp.get("createdAt"))
         updated = parse_date(opp.get("updatedAt"))
         stage_changed = parse_date(opp.get("lastStatusChangeAt"))
+        stage_id = opp.get("pipelineStageId")
+        stage_name = stage_map.get(stage_id, "")
 
-        # Match the reference format exactly
+        # Match the reference format exactly, use stage name for 'stage'
         return {
             "Opportunity Name": opp.get("name"),
             "Contact Name": contact.get("name"),
             "phone": contact.get("phone"),
             "email": contact.get("email"),
             "pipeline": pipeline_name,
-            "stage": opp.get("pipelineStageId"),
+            "stage": stage_name,
             "Lead Value": opp.get("monetaryValue"),
             "source": opp.get("source"),
             "assigned": opp.get("assignedTo"),
@@ -96,7 +110,7 @@ class GHLClient:
             "status": opp.get("status"),
             "Opportunity ID": opp.get("id"),
             "Contact ID": contact.get("id"),
-            "Pipeline Stage ID": opp.get("pipelineStageId"),
+            "Pipeline Stage ID": stage_id,
             "Pipeline ID": opp.get("pipelineId"),
             "Days Since Last Stage Change": days_since(stage_changed),
             "Days Since Last Status Change": days_since(stage_changed),
@@ -104,18 +118,25 @@ class GHLClient:
         }
 
 async def process_export_request(export_request: ExportRequest) -> bytes:
-    """Process export request with multiple accounts and pipelines and return Excel bytes"""
+    """Process export request with multiple accounts and pipelines and return Excel bytes, including stage name"""
     tasks = []
+    stage_maps = {}
+    clients = {}
+    pipeline_stage_map = {}  # (api_key, pipeline_id) -> {stage_id: stage_name}
     for selection in export_request.selections:
         client = GHLClient(selection.api_key)
+        clients[selection.api_key] = client
         pipelines = await client.get_pipelines()
         selected_pipelines = [
             pipe for pipe in pipelines 
             if pipe["id"] in selection.pipelines
         ]
+        # Build stage map from pipelines response
         for pipeline in selected_pipelines:
+            stage_map = {stage["id"]: stage["name"] for stage in pipeline.get("stages", [])}
+            pipeline_stage_map[(selection.api_key, pipeline["id"])] = stage_map
             tasks.append(
-                client.get_opportunities(pipeline["id"], pipeline["name"])
+                client.get_opportunities(pipeline["id"], pipeline["name"], stage_map)
             )
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -126,7 +147,7 @@ async def process_export_request(export_request: ExportRequest) -> bytes:
             continue
         all_opps.extend(result)
 
-    # Ensure columns are in the exact order as the reference
+    # Ensure columns are in the exact order as the reference, with 'stage' as stage name
     columns = [
         "Opportunity Name", "Contact Name", "phone", "email", "pipeline", "stage",
         "Lead Value", "source", "assigned", "Created on", "Updated on",
