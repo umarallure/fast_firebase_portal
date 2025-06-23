@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+firebase-admin
+pydantic
+pydantic-settings
+jinja2
+openpyxl

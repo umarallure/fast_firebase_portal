@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card mt-5">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Login</h4>
+            </div>
+            <div class="card-body">
+                <form id="login-form">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email address</label>
+                        <input type="email" class="form-control" id="email" required autocomplete="username">
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100" id="login-btn">Login</button>
+                </form>
+                <div id="login-error" class="text-danger mt-3" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyASVU8LlpqQ4Dpc-BSSfxyRbsCXJtgjKy4",
+    authDomain: "automation-portal-7a891.firebaseapp.com",
+    databaseURL: "https://automation-portal-7a891.firebaseio.com",
+    projectId: "automation-portal-7a891",
+    storageBucket: "automation-portal-7a891.appspot.com",
+    messagingSenderId: "850682394607",
+    appId: "1:850682394607:web:e42c2edd1ed536a64f281a"
+};
+firebase.initializeApp(firebaseConfig);
+
+document.getElementById('login-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const errorDiv = document.getElementById('login-error');
+    errorDiv.style.display = 'none';
+    firebase.auth().signInWithEmailAndPassword(email, password)
+        .then(() => {
+            window.location.href = "/dashboard";
+        })
+        .catch(error => {
+            errorDiv.textContent = error.message;
+            errorDiv.style.display = 'block';
+        });
+});
+</script>
+{% endblock %}
