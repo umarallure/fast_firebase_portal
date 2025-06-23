@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -6,6 +6,7 @@ from pathlib import Path
 from app.api.automation import router as automation_router
 from fastapi.responses import JSONResponse
 from app.config import settings
+from app.auth.firebase import get_current_user
 import httpx
 
 app = FastAPI()
@@ -35,8 +36,8 @@ async def health_check():
 
 @app.get("/")
 async def root(request: Request):
-    # Redirect to dashboard directly
-    return templates.TemplateResponse("dashboard.html", {"request": request})
+    # Render the new index page with automation cards, login check will be done in JS
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/dashboard")
 async def dashboard_page(request: Request):
