@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Bulk Update Notes</h2>
+    <div class="card">
+        <div class="card-body">
+            <form id="csv-upload-form" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="csvFile" class="form-label">Upload CSV File</label>
+                    <input class="form-control" type="file" id="csvFile" name="csvFile" accept=".csv" required />
+                </div>
+                <button type="submit" class="btn btn-primary">Upload</button>
+            </form>
+            <div id="upload-status" class="mt-3"></div>
+        </div>
+    </div>
+</div>
+<script>
+document.getElementById('csv-upload-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const fileInput = document.getElementById('csvFile');
+    const statusDiv = document.getElementById('upload-status');
+    if (!fileInput.files.length) return;
+    const formData = new FormData();
+    formData.append('csvFile', fileInput.files[0]);
+    statusDiv.innerText = 'Uploading...';
+    fetch('/api/bulk-update-notes', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            statusDiv.innerHTML = `<span class='text-success'>${data.message}</span>`;
+        } else {
+            statusDiv.innerHTML = `<span class='text-danger'>${data.message || 'Error occurred.'}</span>`;
+        }
+    })
+    .catch(() => {
+        statusDiv.innerHTML = `<span class='text-danger'>Upload failed.</span>`;
+    });
+});
+</script>
+{% endblock %}

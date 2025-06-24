@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi import FastAPI, Request, HTTPException, Depends, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -8,6 +8,8 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.auth.firebase import get_current_user
 import httpx
+import csv
+import io
 
 app = FastAPI()
 
@@ -71,3 +73,48 @@ async def get_pipelines_for_subaccount(sub_id: str):
             import logging
             logging.error(f"Failed to fetch pipelines for subaccount {sub_id}: {e}")
             return []
+
+@app.get("/bulk-update-notes")
+async def bulk_update_notes_page(request: Request):
+    return templates.TemplateResponse("bulk_update_notes.html", {"request": request})
+
+@app.post("/api/bulk-update-notes")
+async def bulk_update_notes_api(csvFile: UploadFile = File(...)):
+    try:
+        content = await csvFile.read()
+        decoded = content.decode('utf-8')
+        reader = csv.DictReader(io.StringIO(decoded))
+        rows = list(reader)
+        if not rows:
+            return {"success": False, "message": "CSV is empty or invalid."}
+        # Prepare subaccount API keys
+        subaccounts = settings.subaccounts_list
+        account_api_keys = {str(s['id']): s['api_key'] for s in subaccounts if s.get('api_key')}
+        errors = []
+        success_count = 0
+        async with httpx.AsyncClient(timeout=30) as client:
+            for row in rows:
+                contact_id = row.get('Contact ID')
+                notes = row.get('Notes')
+                account_id = str(row.get('Account Id'))
+                api_key = account_api_keys.get(account_id)
+                if not (contact_id and notes and api_key):
+                    errors.append(f"Missing data for contact {contact_id}")
+                    continue
+                url = f"https://rest.gohighlevel.com/v1/contacts/{contact_id}/notes/"
+                payload = {"body": notes}
+                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                try:
+                    resp = await client.post(url, json=payload, headers=headers)
+                    if resp.status_code == 200:
+                        success_count += 1
+                    else:
+                        errors.append(f"Failed for {contact_id}: {resp.text}")
+                except Exception as e:
+                    errors.append(f"Exception for {contact_id}: {str(e)}")
+        msg = f"Successfully updated notes for {success_count} contacts."
+        if errors:
+            msg += f" Errors: {'; '.join(errors[:5])}{'...' if len(errors)>5 else ''}"
+        return {"success": True, "message": msg}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
