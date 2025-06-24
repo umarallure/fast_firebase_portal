@@ -37,8 +37,8 @@ class GHLClient:
             logger.error(f"Stage fetch failed for pipeline {pipeline_id}: {str(e)}")
             return {}
 
-    async def get_opportunities(self, pipeline_id: str, pipeline_name: str, stage_map: Dict[str, str]) -> List[Dict[str, Any]]:
-        """Fetch all opportunities for a pipeline with pagination and include stage name"""
+    async def get_opportunities(self, pipeline_id: str, pipeline_name: str, stage_map: Dict[str, str], account_id: str) -> List[Dict[str, Any]]:
+        """Fetch all opportunities for a pipeline with pagination and include stage name and account id"""
         opportunities = []
         params = {"limit": 100}
         page = 1
@@ -73,11 +73,11 @@ class GHLClient:
                 logger.error(f"Opportunity fetch failed for {pipeline_id}: {str(e)}")
                 break
 
-        return [self.format_opportunity(opp, pipeline_name, stage_map) for opp in opportunities]
+        return [self.format_opportunity(opp, pipeline_name, stage_map, account_id) for opp in opportunities]
 
     @staticmethod
-    def format_opportunity(opp: Dict[str, Any], pipeline_name: str, stage_map: Dict[str, str]) -> Dict[str, Any]:
-        """Format opportunity data into standardized schema, using stage name instead of stage ID"""
+    def format_opportunity(opp: Dict[str, Any], pipeline_name: str, stage_map: Dict[str, str], account_id: str) -> Dict[str, Any]:
+        """Format opportunity data into standardized schema, using stage name instead of stage ID, and include account id"""
         contact = opp.get("contact", {})
         def parse_date(date_str): return datetime.fromisoformat(date_str[:-1]) if date_str else None
         def days_since(dt): return (datetime.now() - dt).days if dt else None
@@ -114,11 +114,12 @@ class GHLClient:
             "Pipeline ID": opp.get("pipelineId"),
             "Days Since Last Stage Change": days_since(stage_changed),
             "Days Since Last Status Change": days_since(stage_changed),
-            "Days Since Last Updated": days_since(updated)
+            "Days Since Last Updated": days_since(updated),
+            "Account Id": account_id
         }
 
 async def process_export_request(export_request: ExportRequest) -> bytes:
-    """Process export request with multiple accounts and pipelines and return Excel bytes, including stage name"""
+    """Process export request with multiple accounts and pipelines and return Excel bytes, including stage name and account id"""
     tasks = []
     stage_maps = {}
     clients = {}
@@ -136,7 +137,7 @@ async def process_export_request(export_request: ExportRequest) -> bytes:
             stage_map = {stage["id"]: stage["name"] for stage in pipeline.get("stages", [])}
             pipeline_stage_map[(selection.api_key, pipeline["id"])] = stage_map
             tasks.append(
-                client.get_opportunities(pipeline["id"], pipeline["name"], stage_map)
+                client.get_opportunities(pipeline["id"], pipeline["name"], stage_map, selection.account_id)
             )
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -147,14 +148,14 @@ async def process_export_request(export_request: ExportRequest) -> bytes:
             continue
         all_opps.extend(result)
 
-    # Ensure columns are in the exact order as the reference, with 'stage' as stage name
+    # Ensure columns are in the exact order as the reference, with 'stage' as stage name and 'Account Id'
     columns = [
         "Opportunity Name", "Contact Name", "phone", "email", "pipeline", "stage",
         "Lead Value", "source", "assigned", "Created on", "Updated on",
         "lost reason ID", "lost reason name", "Followers", "Notes", "tags",
         "Engagement Score", "status", "Opportunity ID", "Contact ID",
         "Pipeline Stage ID", "Pipeline ID", "Days Since Last Stage Change",
-        "Days Since Last Status Change", "Days Since Last Updated"
+        "Days Since Last Status Change", "Days Since Last Updated", "Account Id"
     ]
     df = pd.DataFrame(all_opps, columns=columns)
     from io import BytesIO
