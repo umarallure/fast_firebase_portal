@@ -1,9 +1,12 @@
 fastapi
 uvicorn
-pandas
-openpyxl
-jinja2
 httpx
+jinja2
+python-dotenv
+pydantic
+python-multipart
+aiofiles
 firebase-admin
 pydantic-settings
-python-multipart
+openpyxl
+pandas
