@@ -213,8 +213,6 @@ async def bulk_update_opportunity_api(csvFile: UploadFile = File(...)):
                 continue
 
             all_ghl_opportunities = await updater.get_all_opportunities_for_account(account_id)
-            
-            # Create a lookup for existing GHL opportunities
             ghl_opportunity_lookup = {}
             for opp in all_ghl_opportunities:
                 phone = normalize_phone_number(opp.get("contact_phone"))
@@ -250,6 +248,28 @@ async def bulk_update_opportunity_api(csvFile: UploadFile = File(...)):
 
             account_update_success_count = 0
             account_update_errors = []
+            notes_update_results = []
+            stage_update_results = []  # <-- Track stage update results
+
+            # Fetch all pipelines and stages for this account (API key)
+            async with httpx.AsyncClient(timeout=30) as client:
+                pipelines_resp = await client.get(
+                    "https://rest.gohighlevel.com/v1/pipelines/",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json"
+                    }
+                )
+                pipelines_data = pipelines_resp.json() if pipelines_resp.status_code == 200 else {}
+                pipelines_list = pipelines_data.get("pipelines", [])
+
+            # Build a mapping: {pipeline_id: {stage_name_lower: stage_id}}
+            pipeline_stage_map = {}
+            for pipeline in pipelines_list:
+                pid = pipeline.get("id")
+                stages = pipeline.get("stages", [])
+                stage_map = {stage.get("name", "").strip().lower(): stage.get("id") for stage in stages}
+                pipeline_stage_map[pid] = stage_map
 
             for row in rows_to_update:
                 client_phone = normalize_phone_number(row.get('Client Phone Number', '').strip())
@@ -279,74 +299,193 @@ async def bulk_update_opportunity_api(csvFile: UploadFile = File(...)):
                 lookup_key_with_date = None
                 lookup_key_no_date = None
 
+                # --- Flexible matching logic ---
+                attempted_keys = []
+
+                def is_transfer_portal(opp):
+                    return opp.get("pipeline_name", "").strip().lower() == "transfer portal"
+
+                # 1. Try full phone, name, date
                 if client_phone and insured_name and csv_created_date:
                     lookup_key_with_date = (client_phone, insured_name, csv_created_date)
-                    matched_opportunity = ghl_opportunity_lookup.get(lookup_key_with_date)
-                
-                if not matched_opportunity and insured_name and csv_created_date: # Fallback to just name and date if phone is missing
-                    lookup_key_with_date = (None, insured_name, csv_created_date)
-                    matched_opportunity = ghl_opportunity_lookup.get(lookup_key_with_date)
+                    attempted_keys.append(lookup_key_with_date)
+                    opp = ghl_opportunity_lookup.get(lookup_key_with_date)
+                    if opp and is_transfer_portal(opp):
+                        matched_opportunity = opp
 
-                if not matched_opportunity and client_phone and insured_name: # Original fallback if date is missing/invalid
+                # 2. Try last 7 or 10 digits of phone, name, date
+                if not matched_opportunity and client_phone and insured_name and csv_created_date:
+                    phone_digits = ''.join(filter(str.isdigit, client_phone))
+                    for digits in [7, 10]:
+                        short_phone = '+' + phone_digits[-digits:] if len(phone_digits) >= digits else None
+                        if short_phone:
+                            key = (short_phone, insured_name, csv_created_date)
+                            attempted_keys.append(key)
+                            opp = ghl_opportunity_lookup.get(key)
+                            if opp and is_transfer_portal(opp):
+                                matched_opportunity = opp
+                                break
+
+                # 3. Try just name and date
+                if not matched_opportunity and insured_name and csv_created_date:
+                    lookup_key_with_date = (None, insured_name, csv_created_date)
+                    attempted_keys.append(lookup_key_with_date)
+                    opp = ghl_opportunity_lookup.get(lookup_key_with_date)
+                    if opp and is_transfer_portal(opp):
+                        matched_opportunity = opp
+
+                # 4. Try full phone and name (no date)
+                if not matched_opportunity and client_phone and insured_name:
                     lookup_key_no_date = (client_phone, insured_name, None)
-                    matched_opportunity = ghl_opportunity_lookup.get(lookup_key_no_date)
-                
-                if not matched_opportunity and insured_name: # Original fallback if phone and date are missing/invalid
+                    attempted_keys.append(lookup_key_no_date)
+                    opp = ghl_opportunity_lookup.get(lookup_key_no_date)
+                    if opp and is_transfer_portal(opp):
+                        matched_opportunity = opp
+
+                # 5. Try last 7 or 10 digits of phone and name (no date)
+                if not matched_opportunity and client_phone and insured_name:
+                    phone_digits = ''.join(filter(str.isdigit, client_phone))
+                    for digits in [7, 10]:
+                        short_phone = '+' + phone_digits[-digits:] if len(phone_digits) >= digits else None
+                        if short_phone:
+                            key = (short_phone, insured_name, None)
+                            attempted_keys.append(key)
+                            opp = ghl_opportunity_lookup.get(key)
+                            if opp and is_transfer_portal(opp):
+                                matched_opportunity = opp
+                                break
+
+                # 6. Try just name (no date, no phone)
+                if not matched_opportunity and insured_name:
                     lookup_key_no_date = (None, insured_name, None)
-                    matched_opportunity = ghl_opportunity_lookup.get(lookup_key_no_date)
+                    attempted_keys.append(lookup_key_no_date)
+                    opp = ghl_opportunity_lookup.get(lookup_key_no_date)
+                    if opp and is_transfer_portal(opp):
+                        matched_opportunity = opp
+
+                # 7. Try matching by opportunity_name (fuzzy, contains insured_name and phone digits)
+                if not matched_opportunity:
+                    phone_digits = ''.join(filter(str.isdigit, client_phone)) if client_phone else ""
+                    for opp in all_ghl_opportunities:
+                        opp_name = opp.get("opportunity_name", "")
+                        if (
+                            insured_name.lower() in opp_name.lower()
+                            and (phone_digits[-7:] in opp_name or phone_digits[-10:] in opp_name)
+                            and is_transfer_portal(opp)
+                        ):
+                            matched_opportunity = opp
+                            attempted_keys.append(("fuzzy", insured_name, phone_digits))
+                            break
 
                 if matched_opportunity:
                     logger.info(f"Match Found for CSV row: {client_phone}, {insured_name}, {csv_created_date}. Matched GHL Opp ID: {matched_opportunity.get('opportunity_id')}")
                     pipeline_id = matched_opportunity['pipeline_id']
                     opportunity_id = matched_opportunity['opportunity_id']
                     
-                    # Get stage ID from stage name
-                    # stage_id = await updater.get_stage_id_from_name(pipeline_id, status_from_csv)
-                    
-                    # if not stage_id:
-                    #     account_update_errors.append(f"Could not find stage ID for status '{status_from_csv}' in pipeline {pipeline_id} for {insured_name}.")
-                    #     continue
+                    # --- Agent mapping ---
+                    agent_id_map = {
+                        "Benjamin": "uO52LEhmrtCqg9eYdiIZ",
+                        "Lydia": "XgpXx6hOyuj3KjGzjxUO",
+                        "Claudia": "Y4DkBuz0jORYFvkMQzlF"
+                    }
+                    agent_name = row.get("Agent", "").strip()
+                    assigned_to_id = agent_id_map.get(agent_name, "")
 
                     payload = {
-                        "title": f"{row.get('Lead Vender', '')} - {row.get('Client Phone Number', '')}", # Concat Lead Vender and Phone Number
-                        "status": "open" # GHL requires status field for update
+                        "title": f"{row.get('INSURED NAME', '')} - {row.get('Client Phone Number', '')}",
+                        "status": "open",
+                        "assignedTo": assigned_to_id,
                     }
-                    # The user only wants to update the name and status for now.
-                    # stageId, monetaryValue, assignedTo, contactId, email, name, phone, tags, companyName
-                    # will not be updated at this stage.
-                    
-                    # Add other optional fields if available in CSV and relevant
-                    # if row.get('Lead Value'):
-                    #     try:
-                    #         payload['monetaryValue'] = float(row['Lead Value'])
-                    #     except ValueError:
-                    #         pass # Ignore if not a valid number
-                    # if row.get('Agent'):
-                    #     # This would require mapping agent name to GHL user ID, which is not in scope yet.
-                    #     # For now, we'll skip or assume 'assignedTo' is not updated via CSV.
-                    #     pass 
-                    # if row.get('Contact ID'): # If CSV has Contact ID, use it
-                    #     payload['contactId'] = row['Contact ID']
-                    # elif matched_opportunity.get('contact_id'): # Otherwise, use fetched Contact ID
-                    #     payload['contactId'] = matched_opportunity['contact_id']
-                    
-                    # # Example of adding tags if available in CSV
-                    # if row.get('tags'):
-                    #     payload['tags'] = [tag.strip() for tag in row['tags'].split(',') if tag.strip()]
-
                     update_success = await updater.update_opportunity(pipeline_id, opportunity_id, payload)
                     if update_success:
                         account_update_success_count += 1
                     else:
                         account_update_errors.append(f"Failed to update opportunity for {insured_name} (ID: {opportunity_id}).")
+
+                    # --- Add Notes Stage ---
+                    notes_value = row.get("Notes", "").strip()
+                    contact_id = matched_opportunity.get("contact_id")
+                    notes_status = None
+                    if notes_value and contact_id:
+                        notes_payload = {
+                            "body": notes_value,
+                            "userId": assigned_to_id
+                        }
+                        try:
+                            # Use httpx.AsyncClient directly for notes API call
+                            async with httpx.AsyncClient(timeout=30) as client:
+                                notes_resp = await client.post(
+                                    f"https://rest.gohighlevel.com/v1/contacts/{contact_id}/notes/",
+                                    json=notes_payload,
+                                    headers={
+                                        "Authorization": f"Bearer {api_key}",
+                                        "Content-Type": "application/json"
+                                    }
+                                )
+                                if notes_resp.status_code == 200:
+                                    notes_status = "success"
+                                else:
+                                    notes_status = f"failed: {notes_resp.text}"
+                        except Exception as e:
+                            notes_status = f"exception: {str(e)}"
+                    else:
+                        notes_status = "skipped (no notes or contact_id)"
+                    notes_update_results.append({
+                        "insured_name": insured_name,
+                        "contact_id": contact_id,
+                        "notes_status": notes_status
+                    })
+
+                    # --- Update Stage ---
+                    stage_update_status = None
+                    status_from_csv = row.get("Status", "").strip()
+                    pipeline_id = matched_opportunity['pipeline_id']
+                    opportunity_id = matched_opportunity['opportunity_id']
+
+                    # Find stageId by matching stage name (case-insensitive)
+                    stage_id = None
+                    if status_from_csv and pipeline_id in pipeline_stage_map:
+                        stage_id = pipeline_stage_map[pipeline_id].get(status_from_csv.lower())
+                    if stage_id:
+                        stage_payload = {
+                            "status": "open",
+                            "stageId": stage_id
+                        }
+                        try:
+                            async with httpx.AsyncClient(timeout=30) as client:
+                                stage_resp = await client.put(
+                                    f"https://rest.gohighlevel.com/v1/pipelines/{pipeline_id}/opportunities/{opportunity_id}/status",
+                                    json=stage_payload,
+                                    headers={
+                                        "Authorization": f"Bearer {api_key}",
+                                        "Content-Type": "application/json"
+                                    }
+                                )
+                                if stage_resp.status_code == 200:
+                                    stage_update_status = "success"
+                                else:
+                                    stage_update_status = f"failed: {stage_resp.text}"
+                        except Exception as e:
+                            stage_update_status = f"exception: {str(e)}"
+                    else:
+                        stage_update_status = "skipped (stage name not found or pipeline missing)"
+                    stage_update_results.append({
+                        "insured_name": insured_name,
+                        "opportunity_id": opportunity_id,
+                        "stage_status": stage_update_status,
+                        "stage_name": status_from_csv,
+                        "stage_id": stage_id
+                    })
                 else:
-                    logger.info(f"No Match Found for CSV row: {client_phone}, {insured_name}, {csv_created_date}. Looked for keys: {lookup_key_with_date}, {lookup_key_no_date}")
+                    logger.info(f"No Match Found for CSV row: {client_phone}, {insured_name}, {csv_created_date}. Attempted keys: {attempted_keys}")
                     account_update_errors.append(f"No matching opportunity found for {insured_name} (Phone: {client_phone}, Date: {csv_created_date}).")
             
             opportunity_update_results[api_key] = {
                 "status": "Completed",
                 "success_count": account_update_success_count,
-                "errors": account_update_errors
+                "errors": account_update_errors,
+                "notes_update_results": notes_update_results,
+                "stage_update_results": stage_update_results  # <-- Add stage results here
             }
 
         return {

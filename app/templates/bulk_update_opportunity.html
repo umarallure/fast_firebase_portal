@@ -144,7 +144,23 @@ document.getElementById('csv-upload-form').addEventListener('submit', function(e
                     resultsHtml += `Status: ${result.status}<br>`;
                     resultsHtml += `Successful Updates: ${result.success_count}<br>`;
                     if (result.errors && result.errors.length > 0) {
-                        resultsHtml += `Errors: <span class="text-danger">${result.errors.join('; ')}</span>`;
+                        resultsHtml += `Errors: <span class="text-danger">${result.errors.join('; ')}</span><br>`;
+                    }
+                    // Show Notes Update Results
+                    if (result.notes_update_results && result.notes_update_results.length > 0) {
+                        resultsHtml += `<details><summary>Notes Update Results</summary><ul>`;
+                        for (const noteRes of result.notes_update_results) {
+                            resultsHtml += `<li>${noteRes.insured_name} (Contact ID: ${noteRes.contact_id}): <span class="${noteRes.notes_status === 'success' ? 'text-success' : 'text-danger'}">${noteRes.notes_status}</span></li>`;
+                        }
+                        resultsHtml += `</ul></details>`;
+                    }
+                    // Show Stage Update Results
+                    if (result.stage_update_results && result.stage_update_results.length > 0) {
+                        resultsHtml += `<details><summary>Stage Update Results</summary><ul>`;
+                        for (const stageRes of result.stage_update_results) {
+                            resultsHtml += `<li>${stageRes.insured_name} (Opp ID: ${stageRes.opportunity_id}, Stage: ${stageRes.stage_name}): <span class="${stageRes.stage_status === 'success' ? 'text-success' : 'text-danger'}">${stageRes.stage_status}</span></li>`;
+                        }
+                        resultsHtml += `</ul></details>`;
                     }
                     resultsHtml += `</li>`;
                 }
