@@ -1,6 +1,47 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
+<script>
+if (!window.firebase) {
+    // Load Firebase if not already loaded
+    var script1 = document.createElement('script');
+    script1.src = "https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js";
+    document.head.appendChild(script1);
+    var script2 = document.createElement('script');
+    script2.src = "https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js";
+    document.head.appendChild(script2);
+}
+document.addEventListener('DOMContentLoaded', function() {
+    // Hide content until auth is checked
+    document.getElementById('bulk-update-content').style.display = 'none';
+    function checkAuth() {
+        if (!window.firebase || !firebase.auth) {
+            setTimeout(checkAuth, 100);
+            return;
+        }
+        const firebaseConfig = {
+            apiKey: "AIzaSyASVU8LlpqQ4Dpc-BSSfxyRbsCXJtgjKy4",
+            authDomain: "automation-portal-7a891.firebaseapp.com",
+            databaseURL: "https://automation-portal-7a891.firebaseio.com",
+            projectId: "automation-portal-7a891",
+            storageBucket: "automation-portal-7a891.appspot.com",
+            messagingSenderId: "850682394607",
+            appId: "1:850682394607:web:e42c2edd1ed536a64f281a"
+        };
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        firebase.auth().onAuthStateChanged(function(user) {
+            if (!user) {
+                window.location.href = "/login";
+            } else {
+                document.getElementById('bulk-update-content').style.display = '';
+            }
+        });
+    }
+    checkAuth();
+});
+</script>
+<div class="container mt-5" id="bulk-update-content" style="display: none;">
     <h2 class="mb-4">Bulk Update Notes</h2>
     <div class="card">
         <div class="card-body">
@@ -15,6 +56,33 @@
         </div>
     </div>
 </div>
+<script>
+document.getElementById('csv-upload-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const fileInput = document.getElementById('csvFile');
+    const statusDiv = document.getElementById('upload-status');
+    if (!fileInput.files.length) return;
+    const formData = new FormData();
+    formData.append('csvFile', fileInput.files[0]);
+    statusDiv.innerText = 'Uploading...';
+    fetch('/api/bulk-update-notes', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            statusDiv.innerHTML = `<span class='text-success'>${data.message}</span>`;
+        } else {
+            statusDiv.innerHTML = `<span class='text-danger'>${data.message || 'Error occurred.'}</span>`;
+        }
+    })
+    .catch(() => {
+        statusDiv.innerHTML = `<span class='text-danger'>Upload failed.</span>`;
+        statusDiv.innerHTML = `<span class='text-danger'>Upload failed.</span>`;
+    });
+});
+</script>
 <script>
 document.getElementById('csv-upload-form').addEventListener('submit', function(e) {
     e.preventDefault();
