@@ -78,4 +78,5 @@ document.addEventListener('DOMContentLoaded', () => {
             exportStatus.innerHTML = 'Export failed.';
         }
     });
+    console.log("API response:", data);
 });

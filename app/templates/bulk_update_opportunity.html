@@ -53,6 +53,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 <button type="submit" class="btn btn-primary">Upload</button>
             </form>
             <div id="upload-status" class="mt-3"></div>
+            <div class="progress mt-3" style="height: 25px; display:none;" id="progress-bar-container">
+                <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                     role="progressbar" style="width: 0%">0%</div>
+            </div>
             <div id="processing-steps" class="mt-3">
                 <h5>Processing Steps:</h5>
                 <ul class="list-group">
@@ -70,21 +74,6 @@ document.addEventListener('DOMContentLoaded', function() {
             <div id="opportunity-update-results" class="mt-3">
                 <!-- Opportunity update results will be displayed here -->
             </div>
-            <div id="debug-data" class="mt-5">
-                <h5>Debug Data:</h5>
-                <div class="card mb-3">
-                    <div class="card-header">GHL Opportunities Fetched</div>
-                    <div class="card-body">
-                        <pre id="debug-ghl-opportunities" style="max-height: 300px; overflow-y: scroll;"></pre>
-                    </div>
-                </div>
-                <div class="card">
-                    <div class="card-header">Cleaned CSV Rows</div>
-                    <div class="card-body">
-                        <pre id="debug-cleaned-rows" style="max-height: 300px; overflow-y: scroll;"></pre>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </div>
@@ -97,36 +86,39 @@ document.getElementById('csv-upload-form').addEventListener('submit', function(e
     const cleanedRowsSpan = document.getElementById('cleaned-rows');
     const apiKeyStatusSpan = document.getElementById('api-key-status');
     const opportunityUpdateResultsDiv = document.getElementById('opportunity-update-results');
-    const debugGhlOpportunitiesPre = document.getElementById('debug-ghl-opportunities');
-    const debugCleanedRowsPre = document.getElementById('debug-cleaned-rows');
+    const progressBarContainer = document.getElementById('progress-bar-container');
+    const progressBar = document.getElementById('progress-bar');
 
     totalRowsSpan.innerText = '0';
     cleanedRowsSpan.innerText = '0';
     apiKeyStatusSpan.innerText = 'N/A';
-    opportunityUpdateResultsDiv.innerHTML = ''; // Clear previous results
-    debugGhlOpportunitiesPre.innerText = 'Loading...';
-    debugCleanedRowsPre.innerText = 'Loading...';
+    opportunityUpdateResultsDiv.innerHTML = '';
+    statusDiv.innerText = 'Uploading and Processing...';
+    progressBarContainer.style.display = 'block';
+    progressBar.style.width = '0%';
+    progressBar.innerText = '0%';
 
     if (!fileInput.files.length) return;
     const formData = new FormData();
     formData.append('csvFile', fileInput.files[0]);
-    statusDiv.innerText = 'Uploading and Processing...';
+
     fetch('/api/bulk-update-opportunity', {
         method: 'POST',
         body: formData
     })
     .then(res => res.json())
     .then(data => {
+        console.log("API response:", data); // <-- Keep for debugging if you want
+        progressBar.style.width = '100%';
+        progressBar.innerText = '100%';
         if (data.success) {
             statusDiv.innerHTML = `<span class='text-success'>${data.message}</span>`;
-            // Extract and display row counts
             if (data.total_rows !== undefined) {
                 totalRowsSpan.innerText = data.total_rows;
             }
             if (data.cleaned_rows !== undefined) {
                 cleanedRowsSpan.innerText = data.cleaned_rows;
             }
-            // Display API Key Status
             if (data.api_key_status) {
                 let statusText = '';
                 for (const vender in data.api_key_status) {
@@ -134,19 +126,16 @@ document.getElementById('csv-upload-form').addEventListener('submit', function(e
                 }
                 apiKeyStatusSpan.innerHTML = statusText;
             }
-
-            // Display Opportunity Update Results
             if (data.opportunity_update_results && Object.keys(data.opportunity_update_results).length > 0) {
                 let resultsHtml = '<h6>Opportunity Update Summary:</h6><ul class="list-group">';
                 for (const apiKey in data.opportunity_update_results) {
                     const result = data.opportunity_update_results[apiKey];
-                    resultsHtml += `<li class="list-group-item"><strong>API Key: ${apiKey}</strong><br>`;
+                    resultsHtml += `<li class="list-group-item"><br>`;
                     resultsHtml += `Status: ${result.status}<br>`;
                     resultsHtml += `Successful Updates: ${result.success_count}<br>`;
                     if (result.errors && result.errors.length > 0) {
                         resultsHtml += `Errors: <span class="text-danger">${result.errors.join('; ')}</span><br>`;
                     }
-                    // Show Notes Update Results
                     if (result.notes_update_results && result.notes_update_results.length > 0) {
                         resultsHtml += `<details><summary>Notes Update Results</summary><ul>`;
                         for (const noteRes of result.notes_update_results) {
@@ -154,7 +143,6 @@ document.getElementById('csv-upload-form').addEventListener('submit', function(e
                         }
                         resultsHtml += `</ul></details>`;
                     }
-                    // Show Stage Update Results
                     if (result.stage_update_results && result.stage_update_results.length > 0) {
                         resultsHtml += `<details><summary>Stage Update Results</summary><ul>`;
                         for (const stageRes of result.stage_update_results) {
@@ -167,33 +155,25 @@ document.getElementById('csv-upload-form').addEventListener('submit', function(e
                 resultsHtml += '</ul>';
                 opportunityUpdateResultsDiv.innerHTML = resultsHtml;
             } else {
-                opportunityUpdateResultsDiv.innerHTML = ''; // Clear previous results if any
+                opportunityUpdateResultsDiv.innerHTML = '';
             }
-
-            // Display Debug Data
-            if (data.debug_ghl_opportunities) {
-                debugGhlOpportunitiesPre.innerText = JSON.stringify(data.debug_ghl_opportunities, null, 2);
-            } else {
-                debugGhlOpportunitiesPre.innerText = 'No GHL opportunities data available.';
+            // Show failed CSV download button if present
+            if (data.failed_csv_url) {
+                statusDiv.innerHTML += `<br><a href="${data.failed_csv_url}" class="btn btn-warning mt-2" download>Download Failed Entries CSV</a>`;
             }
-            if (data.debug_cleaned_rows) {
-                debugCleanedRowsPre.innerText = JSON.stringify(data.debug_cleaned_rows, null, 2);
-            } else {
-                debugCleanedRowsPre.innerText = 'No cleaned CSV rows data available.';
-            }
-
         } else {
             statusDiv.innerHTML = `<span class='text-danger'>${data.message || 'Error occurred.'}</span>`;
-            opportunityUpdateResultsDiv.innerHTML = ''; // Clear results on error
-            debugGhlOpportunitiesPre.innerText = 'Error occurred, no debug data.';
-            debugCleanedRowsPre.innerText = 'Error occurred, no debug data.';
+            opportunityUpdateResultsDiv.innerHTML = '';
+            if (data.failed_csv_url) {
+                statusDiv.innerHTML += `<br><a href="${data.failed_csv_url}" class="btn btn-warning mt-2" download>Download Failed Entries CSV</a>`;
+            }
         }
     })
     .catch(() => {
+        progressBar.style.width = '100%';
+        progressBar.innerText = 'Error';
         statusDiv.innerHTML = `<span class='text-danger'>Upload failed.</span>`;
-        opportunityUpdateResultsDiv.innerHTML = ''; // Clear results on error
-        debugGhlOpportunitiesPre.innerText = 'Upload failed, no debug data.';
-        debugCleanedRowsPre.innerText = 'Upload failed, no debug data.';
+        opportunityUpdateResultsDiv.innerHTML = '';
     });
 });
 </script>

@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 from app.api.automation import router as automation_router
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from app.config import settings
 from app.auth.firebase import get_current_user
 import httpx
@@ -14,6 +14,10 @@ from datetime import datetime
 from typing import Optional
 from app.services.ghl_opportunity_updater import GHLOpportunityUpdater
 import logging
+import asyncio
+import tempfile
+import os
+from starlette.background import BackgroundTask
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +53,9 @@ app.include_router(
     automation_router,
     prefix="/api/v1"
 )
+
+FAILED_CSV_DIR = os.path.join(os.path.dirname(__file__), "static", "failed_csvs")
+os.makedirs(FAILED_CSV_DIR, exist_ok=True)
 
 @app.get("/health")
 async def health_check():
@@ -144,6 +151,13 @@ async def bulk_update_notes_api(csvFile: UploadFile = File(...)):
     except Exception as e:
         return {"success": False, "message": str(e)}
 
+@app.get("/static/failed_csvs/{filename}")
+async def download_failed_csv(filename: str):
+    file_path = os.path.join(FAILED_CSV_DIR, filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path, filename=filename, media_type="text/csv")
+    return JSONResponse({"error": "File not found"}, status_code=404)
+
 @app.post("/api/bulk-update-opportunity")
 async def bulk_update_opportunity_api(csvFile: UploadFile = File(...)):
     expected_columns = [
@@ -205,6 +219,7 @@ async def bulk_update_opportunity_api(csvFile: UploadFile = File(...)):
                 rows_by_api_key[api_key] = []
             rows_by_api_key[api_key].append(row)
 
+        failed_rows = []
         for api_key, rows_to_update in rows_by_api_key.items():
             updater = GHLOpportunityUpdater(api_key)
             account_id = next((s['id'] for s in subaccounts if s.get('api_key') == api_key), None)
@@ -272,6 +287,7 @@ async def bulk_update_opportunity_api(csvFile: UploadFile = File(...)):
                 pipeline_stage_map[pid] = stage_map
 
             for row in rows_to_update:
+                error_msg = None  # <-- Initialize at the start of each row
                 client_phone = normalize_phone_number(row.get('Client Phone Number', '').strip())
                 insured_name = row.get('INSURED NAME', '').strip()
                 status_from_csv = row.get('Status', '').strip()
@@ -400,86 +416,16 @@ async def bulk_update_opportunity_api(csvFile: UploadFile = File(...)):
                     if update_success:
                         account_update_success_count += 1
                     else:
-                        account_update_errors.append(f"Failed to update opportunity for {insured_name} (ID: {opportunity_id}).")
-
-                    # --- Add Notes Stage ---
-                    notes_value = row.get("Notes", "").strip()
-                    contact_id = matched_opportunity.get("contact_id")
-                    notes_status = None
-                    if notes_value and contact_id:
-                        notes_payload = {
-                            "body": notes_value,
-                            "userId": assigned_to_id
-                        }
-                        try:
-                            # Use httpx.AsyncClient directly for notes API call
-                            async with httpx.AsyncClient(timeout=30) as client:
-                                notes_resp = await client.post(
-                                    f"https://rest.gohighlevel.com/v1/contacts/{contact_id}/notes/",
-                                    json=notes_payload,
-                                    headers={
-                                        "Authorization": f"Bearer {api_key}",
-                                        "Content-Type": "application/json"
-                                    }
-                                )
-                                if notes_resp.status_code == 200:
-                                    notes_status = "success"
-                                else:
-                                    notes_status = f"failed: {notes_resp.text}"
-                        except Exception as e:
-                            notes_status = f"exception: {str(e)}"
-                    else:
-                        notes_status = "skipped (no notes or contact_id)"
-                    notes_update_results.append({
-                        "insured_name": insured_name,
-                        "contact_id": contact_id,
-                        "notes_status": notes_status
-                    })
-
-                    # --- Update Stage ---
-                    stage_update_status = None
-                    status_from_csv = row.get("Status", "").strip()
-                    pipeline_id = matched_opportunity['pipeline_id']
-                    opportunity_id = matched_opportunity['opportunity_id']
-
-                    # Find stageId by matching stage name (case-insensitive)
-                    stage_id = None
-                    if status_from_csv and pipeline_id in pipeline_stage_map:
-                        stage_id = pipeline_stage_map[pipeline_id].get(status_from_csv.lower())
-                    if stage_id:
-                        stage_payload = {
-                            "status": "open",
-                            "stageId": stage_id
-                        }
-                        try:
-                            async with httpx.AsyncClient(timeout=30) as client:
-                                stage_resp = await client.put(
-                                    f"https://rest.gohighlevel.com/v1/pipelines/{pipeline_id}/opportunities/{opportunity_id}/status",
-                                    json=stage_payload,
-                                    headers={
-                                        "Authorization": f"Bearer {api_key}",
-                                        "Content-Type": "application/json"
-                                    }
-                                )
-                                if stage_resp.status_code == 200:
-                                    stage_update_status = "success"
-                                else:
-                                    stage_update_status = f"failed: {stage_resp.text}"
-                        except Exception as e:
-                            stage_update_status = f"exception: {str(e)}"
-                    else:
-                        stage_update_status = "skipped (stage name not found or pipeline missing)"
-                    stage_update_results.append({
-                        "insured_name": insured_name,
-                        "opportunity_id": opportunity_id,
-                        "stage_status": stage_update_status,
-                        "stage_name": status_from_csv,
-                        "stage_id": stage_id
-                    })
+                        error_msg = f"Failed to update opportunity for {insured_name} (ID: {opportunity_id})."
+                        account_update_errors.append(error_msg)
                 else:
-                    logger.info(f"No Match Found for CSV row: {client_phone}, {insured_name}, {csv_created_date}. Attempted keys: {attempted_keys}")
-                    account_update_errors.append(f"No matching opportunity found for {insured_name} (Phone: {client_phone}, Date: {csv_created_date}).")
-            
+                    error_msg = f"No matching opportunity found for {insured_name} (Phone: {client_phone}, Date: {csv_created_date})."
+                    account_update_errors.append(error_msg)
+                if error_msg:
+                    failed_row = row.copy()
+                    failed_row["Error"] = error_msg
+                    failed_rows.append(failed_row)
+
             opportunity_update_results[api_key] = {
                 "status": "Completed",
                 "success_count": account_update_success_count,
@@ -488,17 +434,27 @@ async def bulk_update_opportunity_api(csvFile: UploadFile = File(...)):
                 "stage_update_results": stage_update_results  # <-- Add stage results here
             }
 
+        failed_csv_url = None
+        if failed_rows:
+            import uuid
+            import csv as pycsv
+            failed_filename = f"failed_{uuid.uuid4().hex}.csv"
+            failed_path = os.path.join(FAILED_CSV_DIR, failed_filename)
+            with open(failed_path, "w", newline='', encoding="utf-8") as f:
+                writer = pycsv.DictWriter(f, fieldnames=list(failed_rows[0].keys()))
+                writer.writeheader()
+                writer.writerows(failed_rows)
+            failed_csv_url = f"/static/failed_csvs/{failed_filename}"
+
         return {
             "success": True,
-            "message": f"CSV processed. Found {len(rows)} rows, {len(cleaned_rows)} valid rows after cleaning. "
-                       f"API Key Status: {api_key_fetch_status}. Opportunity Update Results: {opportunity_update_results}",
+            "message": f"CSV processed. Found {len(rows)} rows, {len(cleaned_rows)} valid rows after cleaning. ",
             "total_rows": len(rows),
             "cleaned_rows": len(cleaned_rows),
             "api_key_status": api_key_fetch_status,
             "opportunity_update_results": opportunity_update_results,
-            "debug_ghl_opportunities": all_ghl_opportunities, # For debugging
-            "debug_cleaned_rows": cleaned_rows # For debugging
+            "failed_csv_url": failed_csv_url,
+            "failed_rows": failed_rows,  # <-- Add this line
         }
-
     except Exception as e:
         return {"success": False, "message": str(e)}
