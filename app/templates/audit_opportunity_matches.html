@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block content %}
+<script>
+if (!window.firebase) {
+    var script1 = document.createElement('script');
+    script1.src = "https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js";
+    document.head.appendChild(script1);
+    var script2 = document.createElement('script');
+    script2.src = "https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js";
+    document.head.appendChild(script2);
+}
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('audit-content').style.display = 'none';
+    function checkAuth() {
+        if (!window.firebase || !firebase.auth) {
+            setTimeout(checkAuth, 100);
+            return;
+        }
+        const firebaseConfig = {
+            apiKey: "AIzaSyASVU8LlpqQ4Dpc-BSSfxyRbsCXJtgjKy4",
+            authDomain: "automation-portal-7a891.firebaseapp.com",
+            databaseURL: "https://automation-portal-7a891.firebaseio.com",
+            projectId: "automation-portal-7a891",
+            storageBucket: "automation-portal-7a891.appspot.com",
+            messagingSenderId: "850682394607",
+            appId: "1:850682394607:web:e42c2edd1ed536a64f281a"
+        };
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        firebase.auth().onAuthStateChanged(function(user) {
+            if (!user) {
+                window.location.href = "/login";
+            } else {
+                document.getElementById('audit-content').style.display = '';
+            }
+        });
+    }
+    checkAuth();
+});
+</script>
+<div class="container mt-5" id="audit-content" style="display: none;">
+    <h2 class="mb-4">Audit Opportunity Matches</h2>
+    <div class="card">
+        <div class="card-body">
+            <form id="csv-upload-form" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="csvFile" class="form-label">Upload CSV File</label>
+                    <input class="form-control" type="file" id="csvFile" name="csvFile" accept=".csv" required />
+                </div>
+                <button type="submit" class="btn btn-primary">Upload</button>
+            </form>
+            <div id="upload-status" class="mt-3"></div>
+            <div class="progress mt-3" style="height: 25px; display:none;" id="progress-bar-container">
+                <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                     role="progressbar" style="width: 0%">0%</div>
+            </div>
+            <div id="audit-download" class="mt-3"></div>
+            <div id="audit-results" class="mt-4"></div>
+        </div>
+    </div>
+</div>
+<script>
+document.getElementById('csv-upload-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const fileInput = document.getElementById('csvFile');
+    const statusDiv = document.getElementById('upload-status');
+    const progressBarContainer = document.getElementById('progress-bar-container');
+    const progressBar = document.getElementById('progress-bar');
+    const auditResultsDiv = document.getElementById('audit-results');
+    const auditDownloadDiv = document.getElementById('audit-download');
+    statusDiv.innerText = 'Uploading and Processing...';
+    progressBarContainer.style.display = 'block';
+    progressBar.style.width = '0%';
+    progressBar.innerText = '0%';
+    auditResultsDiv.innerHTML = '';
+    auditDownloadDiv.innerHTML = '';
+    if (!fileInput.files.length) return;
+    const formData = new FormData();
+    formData.append('csvFile', fileInput.files[0]);
+    fetch('/api/audit-opportunity-matches', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        progressBar.style.width = '100%';
+        progressBar.innerText = '100%';
+        if (data.success) {
+            statusDiv.innerHTML = `<span class='text-success'>${data.message}</span>`;
+            if (data.audit_results && data.audit_results.length > 0) {
+                let tableHtml = `<div class='table-responsive'><table class='table table-bordered table-striped'><thead><tr>`;
+                // Table headers
+                const csvHeaders = Object.keys(data.audit_results[0].csv_row || {});
+                // Remove api_key from headers if present
+                const filteredHeaders = csvHeaders.filter(h => h !== 'api_key');
+                tableHtml += filteredHeaders.map(h => `<th>CSV: ${h}</th>`).join('');
+                tableHtml += `<th>Matched Opportunity</th></tr></thead><tbody>`;
+                for (const result of data.audit_results) {
+                    tableHtml += '<tr>';
+                    for (const h of filteredHeaders) {
+                        tableHtml += `<td>${result.csv_row[h] || ''}</td>`;
+                    }
+                    if (result.matched_opportunity) {
+                        tableHtml += `<td><pre style='white-space:pre-wrap;'>${JSON.stringify(result.matched_opportunity, null, 2)}</pre></td>`;
+                    } else {
+                        tableHtml += `<td class='text-danger'>No Match Found</td>`;
+                    }
+                    tableHtml += '</tr>';
+                }
+                tableHtml += '</tbody></table></div>';
+                auditResultsDiv.innerHTML = tableHtml;
+                // Prepare download link with full opportunity data
+                if (data.audit_csv_url) {
+                    auditDownloadDiv.innerHTML = `<a class='btn btn-success' href='${data.audit_csv_url}' download>Download Audit Results CSV</a>`;
+                } else {
+                    // Fallback: client-side CSV with full opportunity JSON
+                    const csvContent = [
+                        [...filteredHeaders, 'matched_opportunity'].map(h => `"${h}"`).join(','),
+                        ...data.audit_results.map(result => {
+                            const row = filteredHeaders.map(h => `"${result.csv_row[h] || ''}"`).join(',');
+                            // Serialize matched_opportunity as JSON string, or empty if not found
+                            const opp = result.matched_opportunity ? `"${JSON.stringify(result.matched_opportunity).replace(/"/g, '""')}"` : '""';
+                            return `${row},${opp}`;
+                        })
+                    ].join('\n');
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    auditDownloadDiv.innerHTML = `<a class='btn btn-success' href='${url}' download='audit_results.csv'>Download Audit Results CSV</a>`;
+                }
+            } else {
+                auditResultsDiv.innerHTML = '<div class="alert alert-warning">No results found.</div>';
+            }
+        } else {
+            statusDiv.innerHTML = `<span class='text-danger'>${data.message || 'Error occurred.'}</span>`;
+            auditResultsDiv.innerHTML = '';
+        }
+    })
+    .catch(() => {
+        progressBar.style.width = '100%';
+        progressBar.innerText = 'Error';
+        statusDiv.innerHTML = `<span class='text-danger'>Upload failed.</span>`;
+        auditResultsDiv.innerHTML = '';
+    });
+});
+</script>
+{% endblock %}
