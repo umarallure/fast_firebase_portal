@@ -415,6 +415,8 @@ async def bulk_update_opportunity_api(csvFile: UploadFile = File(...)):
                     payload = {
                         "title": f"{row.get('INSURED NAME', '')} - {row.get('Client Phone Number', '')}"
                     }
+                    # Always include status to satisfy API requirements
+                    payload["status"] = "open"
                     if assigned_to_id:
                         payload["assignedTo"] = assigned_to_id
 
