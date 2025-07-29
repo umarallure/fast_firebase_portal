@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Combined GHL Migration Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .phase-card {
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .phase-card.phase-1 { border-left-color: #0d6efd; }
+        .phase-card.phase-2 { border-left-color: #198754; }
+        .phase-card.completed { border-left-color: #28a745; background: linear-gradient(45deg, #d4edda, #f8f9fa); }
+        .phase-card.active { 
+            border-left-color: #ffc107; 
+            background: linear-gradient(45deg, #fff3cd, #f8f9fa);
+            box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
+        }
+        .phase-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .phase-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+        }
+        .phase-indicator.phase-1 { background: #0d6efd; }
+        .phase-indicator.phase-2 { background: #198754; }
+        .phase-indicator.completed { background: #28a745; }
+        .phase-indicator.active { background: #ffc107; color: #000; animation: pulse 2s infinite; }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .progress-container {
+            position: relative;
+            margin: 20px 0;
+        }
+        .progress-custom {
+            height: 35px;
+            border-radius: 20px;
+            overflow: hidden;
+            background: #e9ecef;
+        }
+        .progress-bar-custom {
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        .test-mode-indicator {
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            color: white;
+            border: none;
+            animation: pulse 2s infinite;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+        }
+        .migration-controls {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+        }
+        .log-container {
+            background: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            max-height: 450px;
+            overflow-y: auto;
+            padding: 1rem;
+            border-radius: 10px;
+            border: 1px solid #333;
+        }
+        .log-entry {
+            margin: 0.3rem 0;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-in-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .stats-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        .mapping-preview {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        .mapping-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            margin: 0.25rem 0;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .similarity-badge {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+        }
+        .similarity-high { background: #28a745; color: white; }
+        .similarity-medium { background: #ffc107; color: #000; }
+        .similarity-low { background: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">
+                            <i class="fas fa-sync-alt text-primary"></i>
+                            Combined GHL Migration Dashboard
+                        </h1>
+                        <p class="text-muted mb-0">Efficiently migrate both contacts and opportunities</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-info" onclick="loadPreview()">
+                            <i class="fas fa-search"></i> Preview Migration
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="loadConfig()">
+                            <i class="fas fa-cog"></i> Refresh Config
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Overview -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-chart-line"></i> Migration Progress
+                            </h5>
+                            <div id="testModeIndicators"></div>
+                        </div>
+                        
+                        <div class="progress-container">
+                            <div class="progress progress-custom">
+                                <div class="progress-bar progress-bar-custom" id="overallProgressBar" style="width: 0%">
+                                    0% Complete
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-2">
+                                <small class="text-muted" id="progressText">Ready to start migration</small>
+                                <small class="text-muted" id="progressPhase"></small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase Cards -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card phase-card phase-1 h-100" id="phase1Card">
+                    <div class="phase-indicator phase-1">1</div>
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-users text-primary"></i> Phase 1: Contact Migration
+                        </h5>
+                        <p class="card-text">Migrate contacts with smart custom field mapping</p>
+                        <div id="phase1Stats">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <div class="stats-number text-primary" id="totalContacts">-</div>
+                                    <small>Contacts</small>
+                                </div>
+                                <div class="col-4">
+                                    <div class="stats-number text-info" id="customFields">-</div>
+                                    <small>Fields</small>
+                                </div>
+                                <div class="col-4">
+                                    <div class="stats-number text-success" id="contactTestLimit">-</div>
+                                    <small>Test Limit</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-primary w-100" onclick="startContactMigration()" id="phase1Btn">
+                                <i class="fas fa-play"></i> Start Phase 1
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card phase-card phase-2 h-100" id="phase2Card">
+                    <div class="phase-indicator phase-2">2</div>
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-sitemap text-success"></i> Phase 2: Opportunity Migration
+                        </h5>
+                        <p class="card-text">Migrate opportunities with smart pipeline mapping</p>
+                        <div id="phase2Stats">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <div class="stats-number text-success" id="totalOpportunities">-</div>
+                                    <small>Opportunities</small>
+                                </div>
+                                <div class="col-4">
+                                    <div class="stats-number text-warning" id="pipelinesMapped">-</div>
+                                    <small>Pipelines</small>
+                                </div>
+                                <div class="col-4">
+                                    <div class="stats-number text-info" id="opportunityTestLimit">-</div>
+                                    <small>Test Limit</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-success w-100" onclick="startOpportunityMigration()" id="phase2Btn" disabled>
+                                <i class="fas fa-play"></i> Start Phase 2
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Row -->
+        <div class="row">
+            <!-- Left Column - Controls and Stats -->
+            <div class="col-md-4">
+                <!-- Migration Controls -->
+                <div class="card migration-controls mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">
+                            <i class="fas fa-rocket"></i> Migration Controls
+                        </h5>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-light btn-lg" onclick="startFullMigration()" id="fullMigrationBtn">
+                                <i class="fas fa-sync-alt"></i> Complete Migration
+                                <small class="d-block">Both Phases</small>
+                            </button>
+                            <div class="row">
+                                <div class="col-6">
+                                    <button class="btn btn-outline-light w-100" onclick="startContactMigration()">
+                                        <i class="fas fa-users"></i> Phase 1 Only
+                                    </button>
+                                </div>
+                                <div class="col-6">
+                                    <button class="btn btn-outline-light w-100" onclick="startOpportunityMigration()">
+                                        <i class="fas fa-sitemap"></i> Phase 2 Only
+                                    </button>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline-light" onclick="loadMappingAnalysis()">
+                                <i class="fas fa-analytics"></i> Analyze Mappings
+                            </button>
+                            <button class="btn btn-outline-light" onclick="checkMigrationStatus()">
+                                <i class="fas fa-chart-line"></i> Check Status
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuration Info -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-cog"></i> Configuration
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="configInfo" class="small">
+                            Loading configuration...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-chart-bar"></i> Quick Stats
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="quickStats">
+                            <div class="text-center text-muted py-3">
+                                <i class="fas fa-search fa-2x mb-2"></i>
+                                <p>Load preview to see stats</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Preview and Logs -->
+            <div class="col-md-8">
+                <!-- Migration Preview -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <i class="fas fa-search"></i> Migration Preview
+                        </h6>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadPreview()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="previewContent">
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-eye fa-3x mb-3"></i>
+                                <p>Click "Preview Migration" to analyze what will be migrated</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activity Log -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <i class="fas fa-terminal"></i> Migration Log
+                        </h6>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="clearLog()">
+                            <i class="fas fa-trash"></i> Clear
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="log-container" id="activityLog">
+                            <div class="log-entry">[SYSTEM] Combined Migration Dashboard initialized</div>
+                            <div class="log-entry">[INFO] Ready to start migration process</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sequential Migration Card -->
+        <div class="row mb-4">
+            <div class="col-md-4 mb-3">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">
+                            <i class="fas fa-rocket text-primary"></i>
+                            Sequential Migration
+                        </h5>
+                        <p class="card-text">
+                            Process one contact and their opportunities at a time for perfect relationship mapping
+                        </p>
+                        <button id="sequentialMigrationBtn" class="btn btn-primary" onclick="startSequentialMigration()">
+                            <i class="fas fa-play"></i> Start Sequential Migration
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">
+                            <i class="fas fa-layer-group text-success"></i>
+                            Full Migration
+                        </h5>
+                        <p class="card-text">
+                            Complete 2-phase migration: all contacts first, then all opportunities
+                        </p>
+                        <button id="fullMigrationBtn" class="btn btn-success">
+                            <i class="fas fa-play"></i> Start Full Migration
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card border-info">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">
+                            <i class="fas fa-eye text-info"></i>
+                            Preview Migration
+                        </h5>
+                        <p class="card-text">
+                            Preview what will be migrated without making any changes
+                        </p>
+                        <button id="previewBtn" class="btn btn-info">
+                            <i class="fas fa-search"></i> Generate Preview
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Modal -->
+        <div class="modal fade" id="resultsModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Migration Results</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" id="resultsModalBody">
+                        <!-- Results will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            let migrationActive = false;
+            let currentConfig = {};
+            let currentPreview = null;
+            
+            // Activity log functions
+            function addLog(message, type = 'info') {
+                const log = document.getElementById('activityLog');
+                const timestamp = new Date().toLocaleTimeString();
+                const icons = {
+                    'error': '❌',
+                    'success': '✅',
+                    'warning': '⚠️',
+                    'phase': '🚀',
+                    'info': 'ℹ️'
+                };
+                
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                entry.innerHTML = `[${timestamp}] ${icons[type] || icons.info} ${message}`;
+                
+                log.appendChild(entry);
+                log.scrollTop = log.scrollHeight;
+            }
+            
+            function clearLog() {
+                document.getElementById('activityLog').innerHTML = 
+                    '<div class="log-entry">[SYSTEM] Log cleared. Ready for new migration...</div>';
+            }
+            
+            // Configuration functions
+            async function loadConfig() {
+                try {
+                    addLog('Loading configuration...');
+                    const response = await fetch('/api/combined-migration/config');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        currentConfig = data.config;
+                        updateConfigDisplay();
+                        addLog('Configuration loaded successfully', 'success');
+                    } else {
+                        addLog(`Failed to load configuration: ${data.error || 'Unknown error'}`, 'error');
+                    }
+                } catch (error) {
+                    addLog(`Error loading configuration: ${error.message}`, 'error');
+                }
+            }
+            
+            function updateConfigDisplay() {
+                const configDiv = document.getElementById('configInfo');
+                const testIndicators = document.getElementById('testModeIndicators');
+                
+                configDiv.innerHTML = `
+                    <div><strong>Child:</strong> ${currentConfig.child_location_id}</div>
+                    <div><strong>Master:</strong> ${currentConfig.master_location_id}</div>
+                    <div><strong>Batch Size:</strong> ${currentConfig.migration_batch_size}</div>
+                    <div><strong>Rate Limit:</strong> ${currentConfig.rate_limit_delay}s</div>
+                    <div><strong>API Keys:</strong> ${currentConfig.has_child_api_key && currentConfig.has_master_api_key ? '✅ Ready' : '❌ Missing'}</div>
+                `;
+                
+                // Test mode indicators
+                let indicators = '';
+                if (currentConfig.contact_settings?.test_mode) {
+                    indicators += `
+                        <span class="badge test-mode-indicator me-2">
+                            <i class="fas fa-flask"></i> Contacts: ${currentConfig.contact_settings.test_limit}
+                        </span>
+                    `;
+                }
+                if (currentConfig.opportunity_settings?.test_mode) {
+                    indicators += `
+                        <span class="badge test-mode-indicator me-2">
+                            <i class="fas fa-vial"></i> Opportunities: ${currentConfig.opportunity_settings.test_limit}
+                        </span>
+                    `;
+                }
+                if (!indicators) {
+                    indicators = `
+                        <span class="badge bg-success">
+                            <i class="fas fa-rocket"></i> PRODUCTION MODE
+                        </span>
+                    `;
+                }
+                testIndicators.innerHTML = indicators;
+            }
+            
+            // Preview functions
+            async function loadPreview() {
+                try {
+                    addLog('Loading migration preview...', 'phase');
+                    document.getElementById('previewContent').innerHTML = `
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="mt-2">Analyzing contacts, opportunities, and mappings...</p>
+                        </div>
+                    `;
+                    
+                    const response = await fetch('/api/combined-migration/preview');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        currentPreview = data.preview;
+                        displayPreview(data.preview);
+                        updateStatsFromPreview(data.preview);
+                        addLog('Preview loaded successfully', 'success');
+                    } else {
+                        addLog(`Failed to load preview: ${data.error}`, 'error');
+                        document.getElementById('previewContent').innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle"></i> ${data.error}
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    addLog(`Error loading preview: ${error.message}`, 'error');
+                    document.getElementById('previewContent').innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i> ${error.message}
+                        </div>
+                    `;
+                }
+            }
+            
+            function displayPreview(preview) {
+                const container = document.getElementById('previewContent');
+                
+                let html = `
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="stats-card">
+                                <div class="stats-number">${preview.summary?.total_contacts || 0}</div>
+                                <div>Total Contacts</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stats-card">
+                                <div class="stats-number">${preview.summary?.total_opportunities || 0}</div>
+                                <div>Total Opportunities</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stats-card">
+                                <div class="stats-number">${preview.summary?.custom_fields_mapped || 0}</div>
+                                <div>Custom Fields</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stats-card">
+                                <div class="stats-number">${preview.summary?.mapped_pipelines || 0}</div>
+                                <div>Mapped Pipelines</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Test mode warning
+                if (preview.summary?.test_mode) {
+                    html += `
+                        <div class="alert alert-warning">
+                            <i class="fas fa-flask"></i> <strong>Test Mode Active:</strong> 
+                            Limited processing - Contacts: ${preview.summary.test_mode.contact_test_limit || 'unlimited'}, 
+                            Opportunities: ${preview.summary.test_mode.opportunity_test_limit || 'unlimited'}
+                        </div>
+                    `;
+                }
+                
+                // Phase previews
+                html += `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-users text-primary"></i> Contact Migration Preview</h6>
+                            <div class="mapping-preview">
+                `;
+                
+                if (preview.contact_migration?.field_mapping?.mapped_fields) {
+                    preview.contact_migration.field_mapping.mapped_fields.slice(0, 5).forEach(field => {
+                        const similarity = field.confidence || 0;
+                        const badgeClass = similarity >= 0.8 ? 'similarity-high' : 
+                                         similarity >= 0.6 ? 'similarity-medium' : 'similarity-low';
+                        html += `
+                            <div class="mapping-item">
+                                <div class="flex-grow-1">
+                                    <strong>${field.child_field}</strong> → ${field.master_field}
+                                </div>
+                                <span class="badge ${badgeClass} similarity-badge">
+                                    ${Math.round(similarity * 100)}%
+                                </span>
+                            </div>
+                        `;
+                    });
+                } else {
+                    html += `<p class="text-muted">No field mappings available</p>`;
+                }
+                
+                html += `
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-sitemap text-success"></i> Opportunity Migration Preview</h6>
+                            <div class="mapping-preview">
+                `;
+                
+                if (preview.opportunity_migration?.opportunities_by_pipeline) {
+                    preview.opportunity_migration.opportunities_by_pipeline.slice(0, 5).forEach(pipeline => {
+                        html += `
+                            <div class="mapping-item">
+                                <div class="flex-grow-1">
+                                    <strong>${pipeline.child_pipeline_name}</strong>
+                                    <small class="d-block text-muted">${pipeline.opportunity_count} opportunities</small>
+                                </div>
+                                <span class="badge bg-primary">${pipeline.opportunity_count}</span>
+                            </div>
+                        `;
+                    });
+                } else {
+                    html += `<p class="text-muted">No pipeline mappings available</p>`;
+                }
+                
+                html += `
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                container.innerHTML = html;
+            }
+            
+            function updateStatsFromPreview(preview) {
+                // Update phase cards with preview data
+                document.getElementById('totalContacts').textContent = preview.summary?.total_contacts || '-';
+                document.getElementById('totalOpportunities').textContent = preview.summary?.total_opportunities || '-';
+                document.getElementById('customFields').textContent = preview.summary?.custom_fields_mapped || '-';
+                document.getElementById('pipelinesMapped').textContent = preview.summary?.mapped_pipelines || '-';
+                document.getElementById('contactTestLimit').textContent = preview.summary?.test_mode?.contact_test_limit || 'None';
+                document.getElementById('opportunityTestLimit').textContent = preview.summary?.test_mode?.opportunity_test_limit || 'None';
+                
+                // Update quick stats
+                const quickStats = document.getElementById('quickStats');
+                quickStats.innerHTML = `
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="stats-number text-primary">${preview.summary?.total_contacts || 0}</div>
+                            <small>Contacts Ready</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="stats-number text-success">${preview.summary?.total_opportunities || 0}</div>
+                            <small>Opportunities Ready</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="stats-number text-info">${preview.summary?.custom_fields_mapped || 0}</div>
+                            <small>Fields Mapped</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="stats-number text-warning">${preview.summary?.mapped_pipelines || 0}</div>
+                            <small>Pipelines Mapped</small>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Migration control functions
+            async function startFullMigration() {
+                if (migrationActive) {
+                    addLog('Migration already in progress', 'warning');
+                    return;
+                }
+                
+                if (!confirm('Start complete migration (both contacts and opportunities)?\n\nThis will:\n1. Migrate all contacts with field mapping\n2. Then migrate all opportunities with pipeline mapping')) {
+                    return;
+                }
+                
+                try {
+                    addLog('Starting complete migration (Phase 1 + Phase 2)...', 'phase');
+                    migrationActive = true;
+                    updateMigrationUI(true);
+                    
+                    const response = await fetch('/api/combined-migration/migrate/full', {
+                        method: 'POST'
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        addLog('Complete migration started successfully', 'success');
+                        startStatusPolling();
+                    } else {
+                        addLog(`Failed to start migration: ${data.error}`, 'error');
+                        migrationActive = false;
+                        updateMigrationUI(false);
+                    }
+                } catch (error) {
+                    addLog(`Error starting migration: ${error.message}`, 'error');
+                    migrationActive = false;
+                    updateMigrationUI(false);
+                }
+            }
+            
+            async function startContactMigration() {
+                if (migrationActive) {
+                    addLog('Migration already in progress', 'warning');
+                    return;
+                }
+                
+                if (!confirm('Start contact migration only (Phase 1)?\n\nThis will migrate all contacts and create mapping for opportunities.')) {
+                    return;
+                }
+                
+                try {
+                    addLog('Starting Phase 1: Contact Migration...', 'phase');
+                    migrationActive = true;
+                    updateMigrationUI(true);
+                    
+                    const response = await fetch('/api/combined-migration/migrate/contacts-only', {
+                        method: 'POST'
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        addLog('Contact migration started successfully', 'success');
+                        startStatusPolling();
+                    } else {
+                        addLog(`Failed to start contact migration: ${data.error}`, 'error');
+                        migrationActive = false;
+                        updateMigrationUI(false);
+                    }
+                } catch (error) {
+                    addLog(`Error starting contact migration: ${error.message}`, 'error');
+                    migrationActive = false;
+                    updateMigrationUI(false);
+                }
+            }
+            
+            async function startOpportunityMigration() {
+                if (migrationActive) {
+                    addLog('Migration already in progress', 'warning');
+                    return;
+                }
+                
+                if (!confirm('Start opportunity migration only (Phase 2)?\n\nNote: This requires contact migration to be completed first.')) {
+                    return;
+                }
+                
+                try {
+                    addLog('Starting Phase 2: Opportunity Migration...', 'phase');
+                    migrationActive = true;
+                    updateMigrationUI(true);
+                    
+                    const response = await fetch('/api/combined-migration/migrate/opportunities-only', {
+                        method: 'POST'
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        addLog('Opportunity migration started successfully', 'success');
+                        startStatusPolling();
+                    } else {
+                        addLog(`Failed to start opportunity migration: ${data.error}`, 'error');
+                        migrationActive = false;
+                        updateMigrationUI(false);
+                    }
+                } catch (error) {
+                    addLog(`Error starting opportunity migration: ${error.message}`, 'error');
+                    migrationActive = false;
+                    updateMigrationUI(false);
+                }
+            }
+            
+            async function startSequentialMigration() {
+                if (migrationActive) {
+                    addLog('Migration already in progress', 'warning');
+                    return;
+                }
+                
+                if (!confirm('Start sequential migration (one contact and their opportunities at a time)?\n\nThis will process contacts and opportunities in sequence for precise mapping.')) {
+                    return;
+                }
+                
+                try {
+                    addLog('Starting Sequential Migration...', 'phase');
+                    migrationActive = true;
+                    updateMigrationUI(true);
+                    
+                    const response = await fetch('/api/combined-migration/migrate/sequential', {
+                        method: 'POST'
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        addLog('Sequential migration started successfully', 'success');
+                        startStatusPolling();
+                    } else {
+                        addLog(`Failed to start sequential migration: ${data.error}`, 'error');
+                        migrationActive = false;
+                        updateMigrationUI(false);
+                    }
+                } catch (error) {
+                    addLog(`Error starting sequential migration: ${error.message}`, 'error');
+                    migrationActive = false;
+                    updateMigrationUI(false);
+                }
+            }
+            
+            function updateMigrationUI(active) {
+                const buttons = ['fullMigrationBtn', 'phase1Btn', 'phase2Btn', 'sequentialMigrationBtn'];
+                buttons.forEach(btnId => {
+                    const btn = document.getElementById(btnId);
+                    if (btn) {
+                        btn.disabled = active;
+                        if (active) {
+                            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running...';
+                        } else {
+                            // Reset button text based on button type
+                            if (btnId === 'fullMigrationBtn') {
+                                btn.innerHTML = '<i class="fas fa-sync-alt"></i> Complete Migration<small class="d-block">Both Phases</small>';
+                            } else if (btnId === 'phase1Btn') {
+                                btn.innerHTML = '<i class="fas fa-users"></i> Phase 1 Only';
+                            } else if (btnId === 'phase2Btn') {
+                                btn.innerHTML = '<i class="fas fa-sitemap"></i> Phase 2 Only';
+                            } else if (btnId === 'sequentialMigrationBtn') {
+                                btn.innerHTML = '<i class="fas fa-rocket"></i> Start Sequential Migration';
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Polling function for migration status
+            function startStatusPolling() {
+                addLog('Starting status polling...', 'info');
+                migrationActive = true;
+                
+                const intervalId = setInterval(async () => {
+                    try {
+                        const response = await fetch('/api/combined-migration/status');
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            updateProgressUI(data.status);
+                            
+                            if (data.status.overall_progress >= 100) {
+                                clearInterval(intervalId);
+                                addLog('Migration completed successfully!', 'success');
+                                migrationActive = false;
+                                updateMigrationUI(false);
+                            }
+                        } else {
+                            addLog(`Error fetching status: ${data.error}`, 'error');
+                        }
+                    } catch (error) {
+                        clearInterval(intervalId);
+                        addLog(`Error: ${error.message}`, 'error');
+                        migrationActive = false;
+                        updateMigrationUI(false);
+                    }
+                }, 5000);
+            }
+            
+            function updateProgressUI(status) {
+                const overallProgressBar = document.getElementById('overallProgressBar');
+                const progressText = document.getElementById('progressText');
+                const progressPhase = document.getElementById('progressPhase');
+                
+                if (status.overall_progress !== undefined) {
+                    overallProgressBar.style.width = `${status.overall_progress}%`;
+                    overallProgressBar.textContent = `${status.overall_progress}% Complete`;
+                }
+                
+                if (status.current_phase) {
+                    progressPhase.textContent = `Phase ${status.current_phase.phase_number}: ${status.current_phase.phase_name}`;
+                } else {
+                    progressPhase.textContent = '';
+                }
+                
+                // Update specific phase cards
+                if (status.phase_progress) {
+                    for (const [phase, progress] of Object.entries(status.phase_progress)) {
+                        const phaseCard = document.getElementById(`phase${phase}Card`);
+                        if (phaseCard) {
+                            const progressBar = phaseCard.querySelector('.progress-bar-custom');
+                            if (progressBar) {
+                                progressBar.style.width = `${progress}%`;
+                                progressBar.textContent = `${progress}%`;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Initial load
+            loadConfig();
+        </script>
+    </div>
+</body>
+</html>

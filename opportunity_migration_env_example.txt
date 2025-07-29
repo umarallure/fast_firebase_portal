@@ -1,0 +1,33 @@
+# Opportunity Migration Environment Variables Example
+# Add these to your .env file
+
+# Opportunity Migration Tag - Custom tag to add to migrated opportunities for identification
+OPPORTUNITY_MIGRATION_TAG=migrated-opportunity
+
+# Test Mode - Set to 5 for testing, 0 for production (no limit)
+OPPORTUNITY_MIGRATION_TEST_LIMIT=5
+
+# Example configurations:
+
+# For testing with 5 opportunities:
+# OPPORTUNITY_MIGRATION_TAG=test-migration
+# OPPORTUNITY_MIGRATION_TEST_LIMIT=5
+
+# For production (migrate all opportunities):
+# OPPORTUNITY_MIGRATION_TAG=migrated-from-child
+# OPPORTUNITY_MIGRATION_TEST_LIMIT=0
+
+# For specific client migration:
+# OPPORTUNITY_MIGRATION_TAG=migrated-arktech
+# OPPORTUNITY_MIGRATION_TEST_LIMIT=10
+
+# These settings work alongside the existing contact migration settings:
+# CONTACT_MIGRATION_TAG=masterarktech
+# CONTACT_MIGRATION_TEST_LIMIT=5
+
+# Important Notes:
+# 1. Contact migration must be completed first (Phase 1) before running opportunity migration
+# 2. The opportunity migration will look for a "contact_mapping.json" file created during contact migration
+# 3. Pipeline and stage mapping is done automatically using smart similarity matching (60%+ threshold)
+# 4. Test mode allows safe validation before processing all opportunities
+# 5. All migrated opportunities will have the specified tag for easy identification

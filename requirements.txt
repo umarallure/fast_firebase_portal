@@ -10,3 +10,5 @@ firebase-admin
 pydantic-settings
 openpyxl
 pandas
+fuzzywuzzy
+python-Levenshtein

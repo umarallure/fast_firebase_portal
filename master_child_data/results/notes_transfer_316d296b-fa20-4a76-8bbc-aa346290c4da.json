@@ -1,0 +1,13 @@
+{
+  "processing_id": "316d296b-fa20-4a76-8bbc-aa346290c4da",
+  "timestamp": "2025-07-17T19:47:19.233954",
+  "summary": {
+    "total_matches": 175,
+    "successful_transfers": 175,
+    "failed_transfers": 0,
+    "total_notes_transferred": 287,
+    "dry_run": false
+  },
+  "matches_processed": 175,
+  "final_errors": []
+}

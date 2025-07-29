@@ -1,0 +1,849 @@
+{% extends "base.html" %}
+
+{% block title %}Master-Child Opportunity Complete Data Sync{% endblock %}
+
+{% block content %}
+<script>
+if (!window.firebase) {
+    // Load Firebase if not already loaded
+    var script1 = document.createElement('script');
+    script1.src = "https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js";
+    document.head.appendChild(script1);
+    var script2 = document.createElement('script');
+    script2.src = "https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js";
+    document.head.appendChild(script2);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Hide content until auth is checked
+    document.getElementById('master-child-opportunity-content').style.display = 'none';
+    function checkAuth() {
+        if (!window.firebase || !firebase.auth) {
+            setTimeout(checkAuth, 100);
+            return;
+        }
+        const firebaseConfig = {
+            apiKey: "AIzaSyASVU8LlpqQ4Dpc-BSSfxyRbsCXJtgjKy4",
+            authDomain: "automation-portal-7a891.firebaseapp.com",
+            databaseURL: "https://automation-portal-7a891.firebaseio.com",
+            projectId: "automation-portal-7a891",
+            storageBucket: "automation-portal-7a891.appspot.com",
+            messagingSenderId: "850682394607",
+            appId: "1:850682394607:web:e42c2edd1ed536a64f281a"
+        };
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        firebase.auth().onAuthStateChanged(function(user) {
+            if (!user) {
+                window.location.href = "/login";
+            } else {
+                document.getElementById('master-child-opportunity-content').style.display = '';
+            }
+        });
+    }
+    checkAuth();
+});
+</script>
+
+<div class="container mt-4" id="master-child-opportunity-content" style="display: none;">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">
+                <i class="fas fa-sync-alt"></i> Master-Child Opportunity Complete Data Sync
+            </h2>
+            
+            <!-- Instructions Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> How It Works</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">This automation matches master and child opportunities using advanced fuzzy matching, then syncs complete opportunity data including owner, status, stage, and pipeline information from child to master opportunities.</p>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-file-alt"></i> Required CSV Columns:</h6>
+                            <ul class="mb-3">
+                                <li><strong>Contact Name</strong> - Full contact name</li>
+                                <li><strong>phone</strong> - Phone number (e.g., +17075675820)</li>
+                                <li><strong>stage</strong> - Contact stage/status</li>
+                                <li><strong>status</strong> - Opportunity status (open, won, lost)</li>
+                                <li><strong>Opportunity ID</strong> - GHL Opportunity ID</li>
+                                <li><strong>Pipeline ID</strong> - GHL Pipeline ID</li>
+                                <li><strong>Pipeline Stage ID</strong> - Stage ID for pipeline mapping</li>
+                                <li><strong>Account Id</strong> - Account/Location ID (note: with space)</li>
+                                <li><strong>assigned</strong> - Current owner (Child file required, Master optional)</li>
+                            </ul>
+                            <small class="text-muted">Enhanced to sync complete opportunity data: owner, status, stage, and pipeline information.</small>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-sync"></i> Complete Data Sync:</h6>
+                            <ul class="mb-3">
+                                <li><strong>Owner Assignment:</strong> Syncs assigned user from child to master</li>
+                                <li><strong>Status Sync:</strong> Updates opportunity status (open, won, lost)</li>
+                                <li><strong>Stage Sync:</strong> Updates pipeline stage with fuzzy matching</li>
+                                <li><strong>Pipeline Mapping:</strong> Dynamic stage ID resolution</li>
+                                <li><strong>Dual API Calls:</strong> Owner + Status/Stage endpoints</li>
+                                <li><strong>Matching Score:</strong> 70% threshold for sync</li>
+                                <li><strong>Enhanced Logging:</strong> Complete sync operation tracking</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Enhanced Functionality:</strong> This system now syncs complete opportunity data including owner assignment, status updates, stage synchronization, and pipeline mapping using advanced GHL API integration.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <ul class="nav nav-tabs mb-4" id="masterChildTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload-pane" type="button" role="tab">
+                        <i class="fas fa-upload"></i> Step 1: Upload Files
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="matching-tab" data-bs-toggle="tab" data-bs-target="#matching-pane" type="button" role="tab">
+                        <i class="fas fa-link"></i> Step 2: Match Opportunities
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="update-tab" data-bs-toggle="tab" data-bs-target="#update-pane" type="button" role="tab">
+                        <i class="fas fa-database"></i> Step 3: Sync Complete Data
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="results-tab" data-bs-toggle="tab" data-bs-target="#results-pane" type="button" role="tab">
+                        <i class="fas fa-chart-line"></i> Step 4: Results
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="masterChildTabContent">
+                <!-- Upload Files Tab -->
+                <div class="tab-pane fade show active" id="upload-pane" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0"><i class="fas fa-file-upload"></i> Master Opportunities</h5>
+                                </div>
+                                <div class="card-body">
+                                    <form id="master-file-form">
+                                        <div class="mb-3">
+                                            <label for="masterFile" class="form-label">Master CSV File</label>
+                                            <input class="form-control" type="file" id="masterFile" name="masterFile" accept=".csv" required />
+                                            <div class="form-text">
+                                                Opportunities that will receive complete data sync (owner, status, stage)
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-primary" id="preview-master-btn">
+                                            <i class="fas fa-eye"></i> Preview Master File
+                                        </button>
+                                        <a href="/api/master-child-opportunity-update/sample-master-csv" class="btn btn-outline-primary" download>
+                                            <i class="fas fa-download"></i> Download Sample
+                                        </a>
+                                    </form>
+                                    <div id="master-preview" class="mt-3"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-success text-white">
+                                    <h5 class="mb-0"><i class="fas fa-file-upload"></i> Child Opportunities</h5>
+                                </div>
+                                <div class="card-body">
+                                    <form id="child-file-form">
+                                        <div class="mb-3">
+                                            <label for="childFile" class="form-label">Child CSV File</label>
+                                            <input class="form-control" type="file" id="childFile" name="childFile" accept=".csv" required />
+                                            <div class="form-text">
+                                                Source of owner assignments
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-success" id="preview-child-btn">
+                                            <i class="fas fa-eye"></i> Preview Child File
+                                        </button>
+                                        <a href="/api/master-child-opportunity-update/sample-child-csv" class="btn btn-outline-success" download>
+                                            <i class="fas fa-download"></i> Download Sample
+                                        </a>
+                                    </form>
+                                    <div id="child-preview" class="mt-3"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upload Results -->
+                    <div id="upload-results" class="card mt-4" style="display: none;">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-check-circle"></i> Upload Results</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="upload-summary"></div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-12 text-center">
+                            <button class="btn btn-lg btn-info" id="upload-files-btn">
+                                <i class="fas fa-upload"></i> Upload & Parse Files
+                            </button>
+                            <button class="btn btn-lg btn-warning" id="start-matching-btn" disabled style="margin-left: 10px;">
+                                <i class="fas fa-play"></i> Start Matching Process
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Matching Tab -->
+                <div class="tab-pane fade" id="matching-pane" role="tabpanel">
+                    <!-- Matching Configuration -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="fas fa-cogs"></i> Matching Configuration</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="matchThreshold" class="form-label">Match Threshold (%)</label>
+                                        <input type="number" class="form-control" id="matchThreshold" value="70" min="50" max="100" />
+                                        <div class="form-text">Minimum similarity score to consider a match</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="highConfidenceThreshold" class="form-label">High Confidence Threshold (%)</label>
+                                        <input type="number" class="form-control" id="highConfidenceThreshold" value="90" min="70" max="100" />
+                                        <div class="form-text">Similarity score for exact matches</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="matching-status"></div>
+                    <div id="matching-results"></div>
+                </div>
+
+                <!-- Update Tab -->
+                <div class="tab-pane fade" id="update-pane" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0"><i class="fas fa-user-edit"></i> Update Configuration</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="updateBatchSize" class="form-label">Batch Size</label>
+                                        <select class="form-select" id="updateBatchSize">
+                                            <option value="5">5 (Very safe, slower)</option>
+                                            <option value="10" selected>10 (Recommended)</option>
+                                            <option value="20">20 (Faster)</option>
+                                            <option value="50">50 (Very fast, higher risk)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Match Types to Process</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="processExactMatches" checked>
+                                            <label class="form-check-label" for="processExactMatches">
+                                                <span class="badge bg-success me-2">Exact</span> Process Exact Matches (90%+ similarity)
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="processFuzzyMatches" checked>
+                                            <label class="form-check-label" for="processFuzzyMatches">
+                                                <span class="badge bg-warning me-2">Fuzzy</span> Process Fuzzy Matches (70-89% similarity)
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <div class="form-check mt-4">
+                                            <input class="form-check-input" type="checkbox" id="dryRunMode" checked>
+                                            <label class="form-check-label" for="dryRunMode">
+                                                <strong>Dry Run Mode</strong> (Preview only, no actual updates)
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="processExactOnly">
+                                            <label class="form-check-label" for="processExactOnly">
+                                                <strong>Exact Matches Only</strong> (Skip fuzzy matches)
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-info-circle"></i> Complete Data Sync Notes:</h6>
+                                <ul class="mb-0">
+                                    <li><strong>Owner Assignment:</strong> Syncs assigned user from child to master opportunities</li>
+                                    <li><strong>Status Sync:</strong> Updates opportunity status (open, won, lost)</li>
+                                    <li><strong>Stage Sync:</strong> Updates pipeline stage with automatic stage ID resolution</li>
+                                    <li><strong>Pipeline Mapping:</strong> Dynamic fetching and caching of pipeline/stage data</li>
+                                    <li><strong>Dual API Integration:</strong> Uses both owner and status/stage API endpoints</li>
+                                    <li>Always test with dry run mode first to preview changes</li>
+                                </ul>
+                            </div>
+
+                            <div class="text-center">
+                                <button class="btn btn-lg btn-success" id="start-update-btn" disabled>
+                                    <i class="fas fa-sync-alt"></i> Start Complete Data Sync Process
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="update-progress" class="mt-4"></div>
+                </div>
+
+                <!-- Results Tab -->
+                <div class="tab-pane fade" id="results-pane" role="tabpanel">
+                    <div id="results-summary"></div>
+                    <div id="download-section" class="mt-4"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let masterOpportunities = [];
+let childOpportunities = [];
+let currentMatches = [];
+let matchingId = null;
+let processingId = null;
+let progressInterval = null;
+
+// File upload and parsing
+document.getElementById('upload-files-btn').addEventListener('click', uploadFiles);
+document.getElementById('start-matching-btn').addEventListener('click', startMatching);
+document.getElementById('start-update-btn').addEventListener('click', startUpdating);
+
+async function uploadFiles() {
+    const masterFile = document.getElementById('masterFile').files[0];
+    const childFile = document.getElementById('childFile').files[0];
+    
+    if (!masterFile || !childFile) {
+        alert('Please select both master and child CSV files');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('master_file', masterFile);
+    formData.append('child_file', childFile);
+    
+    try {
+        showSpinner('Uploading and parsing CSV files...');
+        
+        const response = await fetch('/api/master-child-opportunity-update/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            masterOpportunities = result.data.master_opportunities;
+            childOpportunities = result.data.child_opportunities;
+            displayUploadResults(result.data);
+            document.getElementById('start-matching-btn').disabled = false;
+        } else {
+            alert(`Error parsing files: ${result.detail || 'Unknown error'}`);
+        }
+        
+    } catch (error) {
+        console.error('Upload error:', error);
+        alert(`Upload failed: ${error.message}`);
+    } finally {
+        hideSpinner();
+    }
+}
+
+function displayUploadResults(data) {
+    const resultsDiv = document.getElementById('upload-results');
+    const summaryDiv = document.getElementById('upload-summary');
+    
+    summaryDiv.innerHTML = `
+        <div class="row">
+            <div class="col-md-4">
+                <div class="alert alert-primary">
+                    <strong>${data.master_opportunities.length}</strong><br>
+                    Master Opportunities
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="alert alert-success">
+                    <strong>${data.child_opportunities.length}</strong><br>
+                    Child Opportunities
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="alert alert-info">
+                    <strong>All Will Be Processed</strong><br>
+                    Complete Data Sync
+                </div>
+            </div>
+        </div>
+        
+        <div class="alert alert-success">
+            <h6><i class="fas fa-check-circle"></i> Files Successfully Parsed!</h6>
+            <p class="mb-0">Ready to start matching process. All ${data.master_opportunities.length} master opportunities will be processed for complete data synchronization.</p>
+        </div>
+    `;
+    
+    resultsDiv.style.display = 'block';
+}
+
+async function startMatching() {
+    if (masterOpportunities.length === 0 || childOpportunities.length === 0) {
+        alert('No opportunities loaded for matching');
+        return;
+    }
+    
+    const matchThreshold = parseInt(document.getElementById('matchThreshold').value) / 100;
+    const highConfidenceThreshold = parseInt(document.getElementById('highConfidenceThreshold').value) / 100;
+    
+    const formData = new FormData();
+    formData.append('master_opportunities', JSON.stringify(masterOpportunities));
+    formData.append('child_opportunities', JSON.stringify(childOpportunities));
+    formData.append('match_threshold', matchThreshold);
+    formData.append('high_confidence_threshold', highConfidenceThreshold);
+    
+    try {
+        showSpinner('Starting opportunity matching...');
+        
+        const response = await fetch('/api/master-child-opportunity-update/match', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            matchingId = result.matching_id;
+            
+            // Switch to matching tab and start progress tracking
+            document.getElementById('matching-tab').click();
+            startMatchingProgress();
+        } else {
+            alert(`Error starting matching: ${result.message}`);
+        }
+        
+    } catch (error) {
+        console.error('Matching error:', error);
+        alert(`Matching failed: ${error.message}`);
+    } finally {
+        hideSpinner();
+    }
+}
+
+function startMatchingProgress() {
+    if (progressInterval) {
+        clearInterval(progressInterval);
+    }
+    
+    progressInterval = setInterval(updateMatchingProgress, 2000); // Check every 2 seconds
+    updateMatchingProgress(); // Initial call
+}
+
+async function updateMatchingProgress() {
+    if (!matchingId) return;
+    
+    try {
+        const response = await fetch(`/api/master-child-opportunity-update/match-progress/${matchingId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const progress = result.progress;
+            displayMatchingProgress(progress);
+            
+            // Check if completed
+            if (progress.status === 'completed') {
+                clearInterval(progressInterval);
+                currentMatches = progress.matches;
+                showMatchingResults(progress);
+                document.getElementById('start-update-btn').disabled = false;
+            }
+        }
+        
+    } catch (error) {
+        console.error('Progress update error:', error);
+    }
+}
+
+function displayMatchingProgress(progress) {
+    const statusDiv = document.getElementById('matching-status');
+    
+    statusDiv.innerHTML = `
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-spinner fa-spin"></i> Matching Progress
+                    <span class="badge bg-primary ms-2">${progress.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="progress mb-3" style="height: 25px;">
+                    <div class="progress-bar bg-info" role="progressbar" style="width: ${(progress.processed / progress.total_master * 100)}%">
+                        ${progress.processed}/${progress.total_master}
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="alert alert-success">
+                            <strong>${progress.matches_found}</strong><br>
+                            Total Matches
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="alert alert-info">
+                            <strong>${progress.exact_matches}</strong><br>
+                            Exact Matches
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="alert alert-warning">
+                            <strong>${progress.fuzzy_matches}</strong><br>
+                            Fuzzy Matches
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="alert alert-secondary">
+                            <strong>${progress.no_matches}</strong><br>
+                            No Matches
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function showMatchingResults(progress) {
+    const resultsDiv = document.getElementById('matching-results');
+    
+    const exactMatches = progress.matches.filter(m => m.match_type === 'exact');
+    const fuzzyMatches = progress.matches.filter(m => m.match_type === 'fuzzy');
+    const canUpdateCount = progress.matches.length;  // All matches will be processed
+    const skipCount = 0;  // No skipping based on assignment status
+    
+    resultsDiv.innerHTML = `
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-check-circle"></i> Matching Complete</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <div class="alert alert-success">
+                            <strong>${exactMatches.length}</strong><br>
+                            Exact Matches (90%+)
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="alert alert-warning">
+                            <strong>${fuzzyMatches.length}</strong><br>
+                            Fuzzy Matches (70-89%)
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="alert alert-info">
+                            <strong>${canUpdateCount}</strong><br>
+                            Can Update
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="alert alert-secondary">
+                            <strong>${skipCount}</strong><br>
+                            Will Skip (Already Assigned)
+                        </div>
+                    </div>
+                </div>
+                
+                ${progress.matches.length > 0 ? `
+                    <h6>Match Preview (First 10):</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Master Contact</th>
+                                    <th>Child Contact</th>
+                                    <th>Score</th>
+                                    <th>Type</th>
+                                    <th>New Owner</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${progress.matches.slice(0, 10).map(match => `
+                                    <tr>
+                                        <td>${match.master_opportunity.contact_name}</td>
+                                        <td>${match.child_opportunity ? match.child_opportunity.contact_name : 'No Match'}</td>
+                                        <td><span class="badge ${match.match_type === 'exact' ? 'bg-success' : match.match_type === 'fuzzy' ? 'bg-warning' : 'bg-secondary'}">${(match.match_score * 100).toFixed(1)}%</span></td>
+                                        <td><span class="badge ${match.match_type === 'exact' ? 'bg-success' : match.match_type === 'fuzzy' ? 'bg-warning' : 'bg-secondary'}">${match.match_type}</span></td>
+                                        <td><code>${match.child_opportunity ? match.child_opportunity.assigned_to : 'N/A'}</code></td>
+                                        <td>${match.skip_reason ? `<span class="badge bg-info">Skip: ${match.skip_reason}</span>` : '<span class="badge bg-success">Process</span>'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                ` : ''}
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-sync-alt"></i>
+                    <strong>Ready for Complete Data Sync:</strong> Found ${canUpdateCount} opportunities ready for complete data synchronization (owner, status, stage). 
+                    ${skipCount > 0 ? `${skipCount} opportunities will be skipped due to same stage (no changes needed).` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+async function startUpdating() {
+    if (currentMatches.length === 0) {
+        alert('No matches available for processing');
+        return;
+    }
+    
+    const batchSize = parseInt(document.getElementById('updateBatchSize').value);
+    const dryRun = document.getElementById('dryRunMode').checked;
+    const processExactOnly = document.getElementById('processExactOnly').checked;
+    
+    // Process all matches regardless of assignment status
+    let filteredMatches = currentMatches;
+    
+    if (!document.getElementById('processExactMatches').checked) {
+        filteredMatches = filteredMatches.filter(match => match.match_type !== 'exact');
+    }
+    
+    if (!document.getElementById('processFuzzyMatches').checked) {
+        filteredMatches = filteredMatches.filter(match => match.match_type !== 'fuzzy');
+    }
+    
+    if (processExactOnly) {
+        filteredMatches = filteredMatches.filter(match => match.match_type === 'exact');
+    }
+    
+    if (filteredMatches.length === 0) {
+        alert('No matches meet the selected criteria for processing');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('matches_data', JSON.stringify(filteredMatches));
+    formData.append('dry_run', dryRun);
+    formData.append('batch_size', batchSize);
+    formData.append('process_exact_only', processExactOnly);
+    
+    try {
+        const response = await fetch('/api/master-child-opportunity-update/process', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            processingId = result.processing_id;
+            
+            // Switch to results tab and start progress tracking
+            document.getElementById('results-tab').click();
+            startUpdateProgress();
+        } else {
+            alert(`Error starting updates: ${result.message}`);
+        }
+        
+    } catch (error) {
+        console.error('Update error:', error);
+        alert(`Update failed: ${error.message}`);
+    }
+}
+
+function startUpdateProgress() {
+    if (progressInterval) {
+        clearInterval(progressInterval);
+    }
+    
+    progressInterval = setInterval(updateProgress, 1500); // Check every 1.5 seconds
+    updateProgress(); // Initial call
+}
+
+async function updateProgress() {
+    if (!processingId) return;
+    
+    try {
+        const response = await fetch(`/api/master-child-opportunity-update/progress/${processingId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const progress = result.progress;
+            displayUpdateProgress(progress);
+            
+            // Check if completed
+            if (progress.status === 'completed') {
+                clearInterval(progressInterval);
+                showCompletionResults(progress);
+            }
+        }
+        
+    } catch (error) {
+        console.error('Progress update error:', error);
+    }
+}
+
+function displayUpdateProgress(progress) {
+    const summaryDiv = document.getElementById('results-summary');
+    
+    const percentage = progress.total > 0 ? (progress.completed / progress.total * 100) : 0;
+    
+    summaryDiv.innerHTML = `
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line"></i> Update Progress
+                    <span class="badge bg-primary ms-2">${progress.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="progress mb-3" style="height: 25px;">
+                    <div class="progress-bar bg-success" role="progressbar" style="width: ${percentage}%">
+                        ${progress.completed}/${progress.total} (${percentage.toFixed(1)}%)
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="card border-success">
+                            <div class="card-body text-center">
+                                <h4 class="text-success">${progress.success_count}</h4>
+                                <small>Successful Updates</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-danger">
+                            <div class="card-body text-center">
+                                <h4 class="text-danger">${progress.error_count}</h4>
+                                <small>Failed Updates</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-info">
+                            <div class="card-body text-center">
+                                <h4 class="text-info">${progress.rate || '0'}/min</h4>
+                                <small>Processing Rate</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-warning">
+                            <div class="card-body text-center">
+                                <h4 class="text-warning">${progress.eta || '--'}</h4>
+                                <small>ETA</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                ${progress.recent_errors && progress.recent_errors.length > 0 ? `
+                    <div class="mt-3">
+                        <h6 class="text-danger">Recent Errors:</h6>
+                        <ul class="list-group list-group-flush" style="max-height: 200px; overflow-y: auto;">
+                            ${progress.recent_errors.map(error => 
+                                `<li class="list-group-item list-group-item-danger small">${error}</li>`
+                            ).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function showCompletionResults(progress) {
+    const summaryDiv = document.getElementById('results-summary');
+    
+    const successRate = progress.total > 0 ? (progress.success_count / progress.total * 100) : 0;
+    
+    summaryDiv.innerHTML = `
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-flag-checkered"></i> Master-Child Opportunity Update Complete!</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="alert alert-primary">
+                            <strong>Total Processed:</strong><br>
+                            <span class="h4">${progress.total}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="alert alert-success">
+                            <strong>Successful:</strong><br>
+                            <span class="h4 text-success">${progress.success_count}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="alert alert-danger">
+                            <strong>Failed:</strong><br>
+                            <span class="h4 text-danger">${progress.error_count}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="alert alert-info">
+                            <strong>Success Rate:</strong><br>
+                            <span class="h4 text-info">${successRate.toFixed(1)}%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                ${progress.dry_run ? `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle"></i> This was a <strong>DRY RUN</strong> - no actual updates were made.
+                        The results show what would have happened in a real update.
+                    </div>
+                ` : ''}
+                
+                <div class="alert alert-success">
+                    <h6><i class="fas fa-check-circle"></i> Process Summary:</h6>
+                    <ul class="mb-0">
+                        <li>Successfully matched and updated ${progress.success_count} master opportunity owners</li>
+                        <li>Owner assignments were copied from child opportunities to master opportunities</li>
+                        <li>Master opportunities with existing assignments were skipped</li>
+                        ${progress.error_count > 0 ? `<li class="text-danger">${progress.error_count} updates failed - check recent errors above</li>` : ''}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Utility functions
+function showSpinner(message) {
+    console.log(message);
+    // You can implement a loading spinner here
+}
+
+function hideSpinner() {
+    // Hide loading spinner
+}
+</script>
+{% endblock %}

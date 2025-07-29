@@ -1,0 +1,12 @@
+{
+  "processing_id": "b322ed5b-1983-4e15-bfbc-f7196882e97e",
+  "timestamp": "2025-07-27T01:09:54.009323",
+  "summary": {
+    "total_matches": 1578,
+    "successful_updates": 1578,
+    "failed_updates": 0,
+    "dry_run": false
+  },
+  "matches_processed": 1578,
+  "final_errors": []
+}

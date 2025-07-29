@@ -1,0 +1,652 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk Update Opportunity Owner{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">
+                <i class="fas fa-user-edit"></i> Three-Agent Bulk Update Opportunity Owner
+            </h2>
+            
+            <!-- Instructions Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Instructions</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">Upload a CSV file to bulk update opportunity owners based on stage. Your CSV file must contain these required columns:</p>
+                    <ul class="mb-3">
+                        <li><strong>Opportunity ID</strong> - The GHL opportunity ID</li>
+                        <li><strong>Pipeline ID</strong> - The GHL pipeline ID</li>
+                        <li><strong>Account ID</strong> - The account/subaccount ID for API key matching</li>
+                        <li><strong>stage</strong> - The opportunity stage (for distribution logic)</li>
+                    </ul>
+                    <div class="alert alert-success">
+                        <i class="fas fa-users"></i>
+                        <strong>Three-Agent Distribution:</strong>
+                        <div class="mt-2">
+                            <p class="mb-1"><strong>Bryan:</strong> 40% of opportunities</p>
+                            <p class="mb-1"><strong>Kyla:</strong> 30% of opportunities</p>
+                            <p class="mb-0"><strong>Ira:</strong> 30% of opportunities</p>
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-lightbulb"></i>
+                        <strong>Tip:</strong> Download the sample CSV template to see the expected format.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upload Section -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-upload"></i> Upload CSV File</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <input type="file" class="form-control" id="csvFile" accept=".csv" />
+                        </div>
+                        <div class="col-md-4">
+                            <button type="button" class="btn btn-primary" onclick="uploadCSV()">
+                                <i class="fas fa-upload"></i> Upload & Parse
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <a href="/api/bulk-update-opportunity-owner/sample-csv" class="btn btn-outline-secondary" download>
+                                <i class="fas fa-download"></i> Download Sample CSV
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Parsing Results -->
+            <div id="parsingResults" class="card mb-4" style="display: none;">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-check-circle"></i> Parsing Results</h5>
+                </div>
+                <div class="card-body">
+                    <div id="parsingSummary"></div>
+                </div>
+            </div>
+
+            <!-- User Validation Results -->
+            <div id="validationResults" class="card mb-4" style="display: none;">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-user-check"></i> User ID Validation Results</h5>
+                </div>
+                <div class="card-body">
+                    <div id="validationSummary"></div>
+                </div>
+            </div>
+
+            <!-- Processing Configuration -->
+            <div id="processingConfig" class="card mb-4" style="display: none;">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cogs"></i> Processing Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="batchSize">Batch Size:</label>
+                                <select class="form-control" id="batchSize">
+                                    <option value="5">5 opportunities per batch</option>
+                                    <option value="10" selected>10 opportunities per batch</option>
+                                    <option value="15">15 opportunities per batch</option>
+                                    <option value="20">20 opportunities per batch</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <div class="form-check mt-4">
+                                    <input class="form-check-input" type="checkbox" id="dryRun">
+                                    <label class="form-check-label" for="dryRun">
+                                        <strong>Dry Run Mode</strong>
+                                        <small class="text-muted d-block">Test without making actual updates</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>&nbsp;</label>
+                                <div>
+                                    <button type="button" class="btn btn-info btn-block mb-2" onclick="validateUsers()">
+                                        <i class="fas fa-check-circle"></i> Validate User IDs
+                                    </button>
+                                    <button type="button" class="btn btn-success btn-block" onclick="startProcessing()" id="startProcessingBtn" disabled>
+                                        <i class="fas fa-play"></i> Start Processing
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Tracking -->
+            <div id="progressSection" class="card mb-4" style="display: none;">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line"></i> Processing Progress
+                        <span id="progressStatus" class="badge badge-primary ml-2">Initializing...</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="progress mb-2" style="height: 25px;">
+                                <div id="progressBar" class="progress-bar bg-success" role="progressbar" style="width: 0%">
+                                    <span id="progressText">0%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card border-success">
+                                <div class="card-body text-center">
+                                    <h4 id="successCount" class="text-success">0</h4>
+                                    <small>Successful Updates</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-danger">
+                                <div class="card-body text-center">
+                                    <h4 id="errorCount" class="text-danger">0</h4>
+                                    <small>Failed Updates</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-info">
+                                <div class="card-body text-center">
+                                    <h4 id="rateCount" class="text-info">0/min</h4>
+                                    <small>Processing Rate</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <h4 id="etaCount" class="text-warning">--</h4>
+                                    <small>ETA</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Errors -->
+                    <div id="recentErrorsSection" style="display: none;">
+                        <h6 class="mt-3 mb-2">Recent Errors:</h6>
+                        <ul id="recentErrorsList" class="list-group list-group-flush" style="max-height: 200px; overflow-y: auto;">
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Summary -->
+            <div id="resultsSection" class="card" style="display: none;">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-flag-checkered"></i> Processing Complete</h5>
+                </div>
+                <div class="card-body">
+                    <div id="finalResults"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentOpportunities = [];
+let processingId = null;
+let progressInterval = null;
+let validationPassed = false;
+
+// Upload and parse CSV
+async function uploadCSV() {
+    const fileInput = document.getElementById('csvFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('Please select a CSV file');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+        showSpinner('Parsing CSV file...');
+        
+        const response = await fetch('/api/bulk-update-opportunity-owner/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            currentOpportunities = result.data.opportunities;
+            displayParsingResults(result.data);
+        } else {
+            alert(`Error parsing CSV: ${result.detail || 'Unknown error'}`);
+        }
+        
+    } catch (error) {
+        console.error('Upload error:', error);
+        alert(`Upload failed: ${error.message}`);
+    } finally {
+        hideSpinner();
+    }
+}
+
+// Display parsing results
+function displayParsingResults(data) {
+    const resultsDiv = document.getElementById('parsingResults');
+    const summaryDiv = document.getElementById('parsingSummary');
+    
+    const assignment = data.summary.assignment_distribution;
+    
+    summaryDiv.innerHTML = `
+        <div class="row">
+            <div class="col-md-4">
+                <div class="alert alert-success">
+                    <strong>${data.opportunities.length}</strong> opportunities found
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="alert alert-info">
+                    <strong>${data.summary.unique_accounts}</strong> unique accounts
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="alert alert-warning">
+                    Accounts: ${data.summary.account_ids.join(', ')}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Three-Agent Distribution -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <h6><i class="fas fa-user"></i> Bryan (40%)</h6>
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <h4 class="text-primary">${assignment.bryan.count}</h4>
+                        <h5>${assignment.bryan.name}</h5>
+                        <small class="text-muted">${assignment.bryan.id}</small>
+                        <p class="mt-2 mb-0"><strong>${assignment.bryan.percentage}%</strong></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <h6><i class="fas fa-user"></i> Kyla (30%)</h6>
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <h4 class="text-success">${assignment.kyla.count}</h4>
+                        <h5>${assignment.kyla.name}</h5>
+                        <small class="text-muted">${assignment.kyla.id}</small>
+                        <p class="mt-2 mb-0"><strong>${assignment.kyla.percentage}%</strong></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <h6><i class="fas fa-user"></i> Ira (30%)</h6>
+                <div class="card border-info">
+                    <div class="card-body text-center">
+                        <h4 class="text-info">${assignment.ira.count}</h4>
+                        <h5>${assignment.ira.name}</h5>
+                        <small class="text-muted">${assignment.ira.id}</small>
+                        <p class="mt-2 mb-0"><strong>${assignment.ira.percentage}%</strong></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Opportunity ID</th>
+                        <th>Opportunity Name</th>
+                        <th>Stage</th>
+                        <th>Assigned To</th>
+                        <th>Account ID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.opportunities.slice(0, 10).map(opp => `
+                        <tr>
+                            <td><code>${opp.opportunity_id}</code></td>
+                            <td>${opp.opportunity_name || 'N/A'}</td>
+                            <td><span class="badge badge-secondary">${opp.current_stage}</span></td>
+                            <td><strong>${opp.assigned_owner_name}</strong><br><small class="text-muted">${opp.assigned_to}</small></td>
+                            <td>${opp.account_id}</td>
+                        </tr>
+                    `).join('')}
+                    ${data.opportunities.length > 10 ? `
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">
+                                ... and ${data.opportunities.length - 10} more opportunities
+                            </td>
+                        </tr>
+                    ` : ''}
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    resultsDiv.style.display = 'block';
+    document.getElementById('processingConfig').style.display = 'block';
+    
+    // Reset validation state
+    validationPassed = false;
+    document.getElementById('startProcessingBtn').disabled = true;
+    document.getElementById('validationResults').style.display = 'none';
+}
+
+// Validate user IDs
+async function validateUsers() {
+    if (currentOpportunities.length === 0) {
+        alert('No opportunities loaded for validation');
+        return;
+    }
+    
+    // Get first account ID for validation (assuming all are same account)
+    const accountId = currentOpportunities[0].account_id;
+    
+    const formData = new FormData();
+    formData.append('opportunities_data', JSON.stringify(currentOpportunities));
+    formData.append('account_id', accountId);
+    
+    try {
+        showSpinner('Validating user IDs...');
+        
+        const response = await fetch('/api/bulk-update-opportunity-owner/validate-users', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            displayValidationResults(result.validation);
+        } else {
+            alert(`Validation failed: ${result.detail || 'Unknown error'}`);
+        }
+        
+    } catch (error) {
+        console.error('Validation error:', error);
+        alert(`Validation failed: ${error.message}`);
+    } finally {
+        hideSpinner();
+    }
+}
+
+// Display validation results
+function displayValidationResults(validation) {
+    const resultsDiv = document.getElementById('validationResults');
+    const summaryDiv = document.getElementById('validationSummary');
+    
+    const totalUsers = validation.valid_users.length + validation.invalid_users.length;
+    const validCount = validation.valid_users.length;
+    const invalidCount = validation.invalid_users.length;
+    
+    summaryDiv.innerHTML = `
+        <div class="row">
+            <div class="col-md-4">
+                <div class="alert ${validCount > 0 ? 'alert-success' : 'alert-secondary'}">
+                    <strong>${validCount}</strong> valid user IDs
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="alert ${invalidCount > 0 ? 'alert-danger' : 'alert-secondary'}">
+                    <strong>${invalidCount}</strong> invalid user IDs
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="alert alert-info">
+                    <strong>${totalUsers}</strong> unique users total
+                </div>
+            </div>
+        </div>
+        
+        ${validation.valid_users.length > 0 ? `
+            <h6 class="text-success"><i class="fas fa-check-circle"></i> Valid Users:</h6>
+            <div class="table-responsive mb-3">
+                <table class="table table-sm table-success">
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${validation.valid_users.map(user => `
+                            <tr>
+                                <td><code>${user.id}</code></td>
+                                <td>${user.name}</td>
+                                <td>${user.email}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        ` : ''}
+        
+        ${validation.invalid_users.length > 0 ? `
+            <h6 class="text-danger"><i class="fas fa-exclamation-circle"></i> Invalid Users:</h6>
+            <div class="table-responsive mb-3">
+                <table class="table table-sm table-danger">
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${validation.invalid_users.map(user => `
+                            <tr>
+                                <td><code>${user.id}</code></td>
+                                <td>${user.error}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Warning:</strong> Processing will fail for opportunities with invalid user IDs. 
+                Please correct the user IDs in your CSV file and re-upload, or proceed knowing some updates will fail.
+            </div>
+        ` : ''}
+    `;
+    
+    resultsDiv.style.display = 'block';
+    
+    // Enable processing button based on validation results
+    validationPassed = invalidCount === 0;
+    document.getElementById('startProcessingBtn').disabled = false; // Allow processing even with invalid users (with warning)
+    
+    if (validationPassed) {
+        summaryDiv.innerHTML += `
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i>
+                <strong>All user IDs are valid!</strong> You can proceed with processing.
+            </div>
+        `;
+    }
+}
+
+// Start processing
+async function startProcessing() {
+    if (currentOpportunities.length === 0) {
+        alert('No opportunities to process');
+        return;
+    }
+    
+    const batchSize = parseInt(document.getElementById('batchSize').value);
+    const dryRun = document.getElementById('dryRun').checked;
+    
+    const formData = new FormData();
+    formData.append('opportunities_data', JSON.stringify(currentOpportunities));
+    formData.append('dry_run', dryRun);
+    formData.append('batch_size', batchSize);
+    
+    try {
+        const response = await fetch('/api/bulk-update-opportunity-owner/process', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            processingId = result.processing_id;
+            
+            // Show progress section
+            document.getElementById('progressSection').style.display = 'block';
+            document.getElementById('processingConfig').style.display = 'none';
+            
+            // Start progress tracking
+            startProgressTracking();
+        } else {
+            alert(`Error starting processing: ${result.message}`);
+        }
+        
+    } catch (error) {
+        console.error('Processing error:', error);
+        alert(`Processing failed: ${error.message}`);
+    }
+}
+
+// Start progress tracking
+function startProgressTracking() {
+    if (progressInterval) {
+        clearInterval(progressInterval);
+    }
+    
+    progressInterval = setInterval(updateProgress, 1500); // Check every 1.5 seconds
+    updateProgress(); // Initial call
+}
+
+// Update progress display
+async function updateProgress() {
+    if (!processingId) return;
+    
+    try {
+        const response = await fetch(`/api/bulk-update-opportunity-owner/progress/${processingId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const progress = result.progress;
+            
+            // Update status
+            document.getElementById('progressStatus').textContent = progress.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            
+            // Update progress bar
+            const percentage = progress.total > 0 ? (progress.completed / progress.total * 100) : 0;
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            
+            progressBar.style.width = `${percentage}%`;
+            progressText.textContent = `${progress.completed}/${progress.total} (${percentage.toFixed(1)}%)`;
+            
+            // Update counters
+            document.getElementById('successCount').textContent = progress.success_count;
+            document.getElementById('errorCount').textContent = progress.error_count;
+            document.getElementById('rateCount').textContent = progress.rate ? `${progress.rate}/min` : '0/min';
+            document.getElementById('etaCount').textContent = progress.eta || '--';
+            
+            // Update recent errors
+            if (progress.recent_errors && progress.recent_errors.length > 0) {
+                const errorsSection = document.getElementById('recentErrorsSection');
+                const errorsList = document.getElementById('recentErrorsList');
+                
+                errorsList.innerHTML = progress.recent_errors.map(error => 
+                    `<li class="list-group-item list-group-item-danger small">${error}</li>`
+                ).join('');
+                
+                errorsSection.style.display = 'block';
+            }
+            
+            // Check if completed
+            if (progress.status === 'completed') {
+                clearInterval(progressInterval);
+                showCompletionResults(progress);
+            }
+        }
+        
+    } catch (error) {
+        console.error('Progress update error:', error);
+    }
+}
+
+// Show completion results
+function showCompletionResults(progress) {
+    const resultsDiv = document.getElementById('resultsSection');
+    const finalResults = document.getElementById('finalResults');
+    
+    const successRate = progress.total > 0 ? (progress.success_count / progress.total * 100) : 0;
+    
+    finalResults.innerHTML = `
+        <div class="row">
+            <div class="col-md-12">
+                <div class="alert alert-success">
+                    <h5><i class="fas fa-check-circle"></i> Processing Complete!</h5>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Total Processed:</strong><br>
+                            <span class="h4">${progress.total}</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Successful:</strong><br>
+                            <span class="h4 text-success">${progress.success_count}</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Failed:</strong><br>
+                            <span class="h4 text-danger">${progress.error_count}</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Success Rate:</strong><br>
+                            <span class="h4 text-info">${successRate.toFixed(1)}%</span>
+                        </div>
+                    </div>
+                    ${progress.dry_run ? `
+                        <div class="alert alert-warning mt-3">
+                            <i class="fas fa-info-circle"></i> This was a <strong>DRY RUN</strong> - no actual updates were made.
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    resultsDiv.style.display = 'block';
+}
+
+// Utility functions
+function showSpinner(message) {
+    // You can implement a loading spinner here
+    console.log(message);
+}
+
+function hideSpinner() {
+    // Hide loading spinner
+}
+</script>
+{% endblock %}

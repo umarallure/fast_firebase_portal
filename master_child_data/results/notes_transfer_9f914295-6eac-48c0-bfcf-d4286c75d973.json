@@ -1,0 +1,13 @@
+{
+  "processing_id": "9f914295-6eac-48c0-bfcf-d4286c75d973",
+  "timestamp": "2025-07-17T19:57:08.074060",
+  "summary": {
+    "total_matches": 35,
+    "successful_transfers": 35,
+    "failed_transfers": 0,
+    "total_notes_transferred": 62,
+    "dry_run": false
+  },
+  "matches_processed": 35,
+  "final_errors": []
+}

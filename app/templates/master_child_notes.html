@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% block content %}
+<script>
+if (!window.firebase) {
+    // Load Firebase if not already loaded
+    var script1 = document.createElement('script');
+    script1.src = "https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js";
+    document.head.appendChild(script1);
+    var script2 = document.createElement('script');
+    script2.src = "https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js";
+    document.head.appendChild(script2);
+}
+document.addEventListener('DOMContentLoaded', function() {
+    // Hide content until auth is checked
+    document.getElementById('master-child-notes-content').style.display = 'none';
+    function checkAuth() {
+        if (!window.firebase || !firebase.auth) {
+            setTimeout(checkAuth, 100);
+            return;
+        }
+        const firebaseConfig = {
+            apiKey: "AIzaSyASVU8LlpqQ4Dpc-BSSfxyRbsCXJtgjKy4",
+            authDomain: "automation-portal-7a891.firebaseapp.com",
+            databaseURL: "https://automation-portal-7a891.firebaseio.com",
+            projectId: "automation-portal-7a891",
+            storageBucket: "automation-portal-7a891.appspot.com",
+            messagingSenderId: "850682394607",
+            appId: "1:850682394607:web:e42c2edd1ed536a64f281a"
+        };
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        firebase.auth().onAuthStateChanged(function(user) {
+            if (!user) {
+                window.location.href = "/login";
+            } else {
+                document.getElementById('master-child-notes-content').style.display = '';
+            }
+        });
+    }
+    checkAuth();
+});
+</script>
+
+<div class="container mt-5" id="master-child-notes-content" style="display: none;">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h4><i class="fas fa-exchange-alt"></i> Master-Child Notes Transfer Automation</h4>
+                <p class="mb-0">Advanced contact matching and notes transfer system. Upload Master and Child CSV files to match contacts and transfer notes from child contacts to corresponding master contacts.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs mb-4" id="masterChildTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload-pane" type="button" role="tab">
+                <i class="fas fa-upload"></i> Step 1: Upload Files
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="matching-tab" data-bs-toggle="tab" data-bs-target="#matching-pane" type="button" role="tab">
+                <i class="fas fa-link"></i> Step 2: Contact Matching
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="transfer-tab" data-bs-toggle="tab" data-bs-target="#transfer-pane" type="button" role="tab">
+                <i class="fas fa-sticky-note"></i> Step 3: Notes Transfer
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="results-tab" data-bs-toggle="tab" data-bs-target="#results-pane" type="button" role="tab">
+                <i class="fas fa-chart-line"></i> Step 4: Results
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="masterChildTabContent">
+        <!-- Upload Files Tab -->
+        <div class="tab-pane fade show active" id="upload-pane" role="tabpanel">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-file-upload"></i> Upload Master File</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="master-file-form">
+                                <div class="mb-3">
+                                    <label for="masterFile" class="form-label">Master CSV File</label>
+                                    <input class="form-control" type="file" id="masterFile" name="masterFile" accept=".csv" required />
+                                    <div class="form-text">
+                                        Main contacts that will receive notes from child contacts
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-primary" id="preview-master-btn">
+                                    <i class="fas fa-eye"></i> Preview Master File
+                                </button>
+                            </form>
+                            <div id="master-preview" class="mt-3"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fas fa-file-upload"></i> Upload Child File</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="child-file-form">
+                                <div class="mb-3">
+                                    <label for="childFile" class="form-label">Child CSV File</label>
+                                    <input class="form-control" type="file" id="childFile" name="childFile" accept=".csv" required />
+                                    <div class="form-text">
+                                        Source contacts with notes to be transferred
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-success" id="preview-child-btn">
+                                    <i class="fas fa-eye"></i> Preview Child File
+                                </button>
+                            </form>
+                            <div id="child-preview" class="mt-3"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-warning text-dark">
+                            <h6 class="mb-0"><i class="fas fa-info-circle"></i> Required CSV Format</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Required Columns:</h6>
+                                    <ul class="list-unstyled">
+                                        <li><i class="fas fa-check text-success"></i> <strong>Contact Name</strong> - Full contact name</li>
+                                        <li><i class="fas fa-check text-success"></i> <strong>phone</strong> - Phone number</li>
+                                        <li><i class="fas fa-check text-success"></i> <strong>stage</strong> - Contact stage/status</li>
+                                        <li><i class="fas fa-check text-success"></i> <strong>Contact ID</strong> - GHL Contact ID</li>
+                                        <li><i class="fas fa-check text-success"></i> <strong>Account Id</strong> - GHL Account/Location ID</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Matching Algorithm:</h6>
+                                    <ul class="list-unstyled">
+                                        <li><strong>Phone:</strong> 60% weight (exact match)</li>
+                                        <li><strong>Name:</strong> 30% weight (fuzzy match)</li>
+                                        <li><strong>Stage:</strong> 10% weight (exact match)</li>
+                                        <li><strong>Threshold:</strong> 70% for potential match</li>
+                                        <li><strong>High Confidence:</strong> 90%+ for exact match</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-12 text-center">
+                    <button class="btn btn-lg btn-info" id="start-matching-btn" disabled>
+                        <i class="fas fa-play"></i> Start Contact Matching Process
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Matching Tab -->
+        <div class="tab-pane fade" id="matching-pane" role="tabpanel">
+            <div id="matching-status"></div>
+            <div id="matching-results"></div>
+        </div>
+
+        <!-- Notes Transfer Tab -->
+        <div class="tab-pane fade" id="transfer-pane" role="tabpanel">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-sticky-note"></i> Notes Transfer Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="transferBatchSize" class="form-label">Batch Size</label>
+                                <select class="form-select" id="transferBatchSize">
+                                    <option value="5">5 (Very safe, slower)</option>
+                                    <option value="10" selected>10 (Recommended)</option>
+                                    <option value="20">20 (Faster)</option>
+                                    <option value="50">50 (Very fast, higher risk)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Match Types to Process</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="processExactMatches" checked>
+                                    <label class="form-check-label" for="processExactMatches">
+                                        <span class="badge bg-success me-2">Exact</span> Process Exact Matches (90%+ similarity)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="processFuzzyMatches" checked>
+                                    <label class="form-check-label" for="processFuzzyMatches">
+                                        <span class="badge bg-warning me-2">Fuzzy</span> Process Fuzzy Matches (70-89% similarity)
+                                    </label>
+                                </div>
+                                <small class="text-muted">Select which match types should be included in the notes transfer</small>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check mt-3">
+                                    <input class="form-check-input" type="checkbox" id="dryRunMode" checked>
+                                    <label class="form-check-label" for="dryRunMode">
+                                        <strong>Dry Run Mode</strong> (Preview only, no actual transfer)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-exclamation-triangle"></i> Important Notes:</h6>
+                        <ul class="mb-0">
+                            <li>Notes will be transferred from child contacts to master contacts</li>
+                            <li>Original note information (creator, date) will be preserved in the transferred note</li>
+                            <li>Each note will be marked as "[Transferred from child contact]"</li>
+                            <li>Always test with dry run mode first</li>
+                        </ul>
+                    </div>
+
+                    <div class="text-center">
+                        <button class="btn btn-lg btn-warning" id="start-transfer-btn" disabled>
+                            <i class="fas fa-arrow-right"></i> Start Notes Transfer Process
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="transfer-progress" class="mt-4"></div>
+        </div>
+
+        <!-- Results Tab -->
+        <div class="tab-pane fade" id="results-pane" role="tabpanel">
+            <div id="results-summary"></div>
+            <div id="download-section" class="mt-4"></div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', path='js/master-child-notes.js') }}"></script>
+{% endblock %}

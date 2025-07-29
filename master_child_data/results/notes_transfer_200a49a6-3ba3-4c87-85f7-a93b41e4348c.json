@@ -1,0 +1,13 @@
+{
+  "processing_id": "200a49a6-3ba3-4c87-85f7-a93b41e4348c",
+  "timestamp": "2025-07-17T19:31:35.772998",
+  "summary": {
+    "total_matches": 30,
+    "successful_transfers": 30,
+    "failed_transfers": 0,
+    "total_notes_transferred": 40,
+    "dry_run": false
+  },
+  "matches_processed": 30,
+  "final_errors": []
+}

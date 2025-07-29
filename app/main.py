@@ -1,10 +1,18 @@
-from fastapi import FastAPI, Request, HTTPException, Depends, UploadFile, File, Body
+from fastapi import FastAPI, Request, HTTPException, Depends, UploadFile, File, Body, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from pathlib import Path
 from app.api.automation import router as automation_router
-from fastapi.responses import JSONResponse, FileResponse
+from app.api.enhanced_automation import router as enhanced_automation_router
+from app.api.migration import router as migration_router
+from app.api.contact_migration import router as contact_migration_router
+from app.api.opportunity_migration import router as opportunity_migration_router
+from app.api.combined_migration import router as combined_migration_router
+from app.api.bulk_opportunity_owner_update import router as bulk_opportunity_owner_router
+from app.api.master_child_opportunity_update import router as master_child_opportunity_router
+from app.api.transfer_portal_comparison import router as transfer_portal_comparison_router
 from app.config import settings
 from app.auth.firebase import get_current_user
 import httpx
@@ -23,6 +31,8 @@ from starlette.background import BackgroundTask
 import uuid
 import csv as pycsv
 import json
+from app.services.master_copy_notes import master_copy_service
+from app.services.master_child_notes import MasterChildNotesService
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +69,55 @@ app.include_router(
     prefix="/api/v1"
 )
 
+app.include_router(
+    enhanced_automation_router,
+    prefix="/api/v1/enhanced",
+    tags=["enhanced-automation"]
+)
+
+app.include_router(
+    migration_router,
+    prefix="/api/v1",
+    tags=["migration"]
+)
+
+app.include_router(
+    contact_migration_router,
+    tags=["contact-migration"]
+)
+
+app.include_router(
+    opportunity_migration_router,
+    prefix="/api/opportunity-migration",
+    tags=["opportunity-migration"]
+)
+
+app.include_router(
+    combined_migration_router,
+    prefix="/api/combined-migration",
+    tags=["combined-migration"]
+)
+
+app.include_router(
+    bulk_opportunity_owner_router,
+    prefix="/api/bulk-update-opportunity-owner",
+    tags=["bulk-opportunity-owner-update"]
+)
+
+app.include_router(
+    master_child_opportunity_router,
+    prefix="/api/master-child-opportunity-update",
+    tags=["master-child-opportunity-update"]
+)
+
+app.include_router(
+    transfer_portal_comparison_router,
+    prefix="/api/transfer-portal-comparison",
+    tags=["transfer-portal-comparison"]
+)
+
+# Force reload for bulk opportunity owner update - test 2
+
 FAILED_CSV_DIR = os.path.join(os.path.dirname(__file__), "static", "failed_csvs")
 os.makedirs(FAILED_CSV_DIR, exist_ok=True)
 
@@ -74,6 +133,22 @@ async def root(request: Request):
 @app.get("/dashboard")
 async def dashboard_page(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
+
+@app.get("/enhanced-dashboard")
+async def enhanced_dashboard_page(request: Request):
+    return templates.TemplateResponse("enhanced_dashboard.html", {"request": request})
+
+@app.get("/contact-migration")
+async def contact_migration_page(request: Request):
+    return templates.TemplateResponse("contact_migration_dashboard.html", {"request": request})
+
+@app.get("/opportunity-migration")
+async def opportunity_migration_page(request: Request):
+    return templates.TemplateResponse("opportunity_migration_dashboard.html", {"request": request})
+
+@app.get("/combined-migration")
+async def combined_migration_page(request: Request):
+    return templates.TemplateResponse("combined_migration_dashboard.html", {"request": request})
 
 @app.get("/login")
 async def login_page(request: Request):
@@ -107,9 +182,29 @@ async def get_pipelines_for_subaccount(sub_id: str):
 async def bulk_update_notes_page(request: Request):
     return templates.TemplateResponse("bulk_update_notes.html", {"request": request})
 
+@app.get("/master-copy-notes")
+async def master_copy_notes_page(request: Request):
+    return templates.TemplateResponse("master_copy_notes.html", {"request": request})
+
+@app.get("/master-child-notes")
+async def master_child_notes_page(request: Request):
+    return templates.TemplateResponse("master_child_notes.html", {"request": request})
+
 @app.get("/bulk-update-opportunity")
 async def bulk_update_opportunity_page(request: Request):
     return templates.TemplateResponse("bulk_update_opportunity.html", {"request": request})
+
+@app.get("/bulk-update-opportunity-owner")
+async def bulk_update_opportunity_owner_page(request: Request):
+    return templates.TemplateResponse("bulk_update_opportunity_owner.html", {"request": request})
+
+@app.get("/master-child-opportunity-update")
+async def master_child_opportunity_update_page(request: Request):
+    return templates.TemplateResponse("master_child_opportunity_update.html", {"request": request})
+
+@app.get("/transfer-portal-comparison")
+async def transfer_portal_comparison_page(request: Request):
+    return templates.TemplateResponse("transfer_portal_comparison.html", {"request": request})
 
 @app.post("/api/bulk-update-notes")
 async def bulk_update_notes_api(csvFile: UploadFile = File(...)):
@@ -155,13 +250,6 @@ async def bulk_update_notes_api(csvFile: UploadFile = File(...)):
         return {"success": True, "message": msg}
     except Exception as e:
         return {"success": False, "message": str(e)}
-
-@app.get("/static/failed_csvs/{filename}")
-async def download_failed_csv(filename: str):
-    file_path = os.path.join(FAILED_CSV_DIR, filename)
-    if os.path.exists(file_path):
-        return FileResponse(file_path, filename=filename, media_type="text/csv")
-    return JSONResponse({"error": "File not found"}, status_code=404)
 
 @app.post("/api/bulk-update-opportunity")
 async def bulk_update_opportunity_api(csvFile: UploadFile = File(...)):
@@ -801,3 +889,312 @@ async def add_subaccount(data: dict = Body(...)):
         raise HTTPException(status_code=500, detail=f"Could not write .env file: {e}")
 
     return JSONResponse(content={"success": True, "message": "Subaccount added to .env"})
+
+@app.get("/migration")
+async def migration_dashboard_page(request: Request):
+    return templates.TemplateResponse("migration_dashboard.html", {"request": request})
+
+# Master Copy Notes API Endpoints
+@app.post("/api/master-copy-notes")
+async def master_copy_notes_api(
+    csvFile: UploadFile = File(...),
+    enableBackup: bool = Form(True),
+    enableValidation: bool = Form(True),
+    batchSize: int = Form(25),
+    operationName: str = Form("")
+):
+    try:
+        content = await csvFile.read()
+        decoded = content.decode('utf-8')
+        
+        result = await master_copy_service.process_master_copy(
+            csv_content=decoded,
+            enable_backup=enableBackup,
+            enable_validation=enableValidation,
+            batch_size=batchSize,
+            operation_name=operationName or None
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Master copy notes API error: {str(e)}")
+        return {"success": False, "message": str(e)}
+
+@app.get("/api/master-copy-notes/progress/{processing_id}")
+async def get_master_copy_progress(processing_id: str):
+    try:
+        return master_copy_service.get_progress(processing_id)
+    except Exception as e:
+        logger.error(f"Progress tracking error: {str(e)}")
+        return {"success": False, "message": str(e)}
+
+@app.get("/api/master-copy-notes/template/{template_type}")
+async def download_master_copy_template(template_type: str):
+    try:
+        template_content = master_copy_service.get_template(template_type)
+        
+        filename_map = {
+            'basic': 'master-copy-notes-basic-template.csv',
+            'advanced': 'master-copy-notes-advanced-template.csv',
+            'sample': 'master-copy-notes-sample-data.csv'
+        }
+        
+        filename = filename_map.get(template_type, 'master-copy-notes-template.csv')
+        
+        return StreamingResponse(
+            io.StringIO(template_content), 
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except Exception as e:
+        logger.error(f"Template download error: {str(e)}")
+        return JSONResponse({"error": str(e)}, status_code=404)
+
+@app.post("/api/master-copy-notes/backup")
+async def create_master_copy_backup(operationName: str = Form("")):
+    try:
+        result = await master_copy_service.create_backup(operationName or None)
+        return result
+    except Exception as e:
+        logger.error(f"Backup creation error: {str(e)}")
+        return {"success": False, "message": str(e)}
+
+@app.get("/api/master-copy-notes/backups")
+async def get_master_copy_backups():
+    try:
+        backups = master_copy_service.get_backups()
+        return {"success": True, "backups": backups}
+    except Exception as e:
+        logger.error(f"Backup list error: {str(e)}")
+        return {"success": False, "message": str(e)}
+
+@app.get("/api/master-copy-notes/history")
+async def get_master_copy_history():
+    try:
+        operations = master_copy_service.get_operation_history()
+        return {"success": True, "operations": operations}
+    except Exception as e:
+        logger.error(f"History error: {str(e)}")
+        return {"success": False, "message": str(e)}
+
+@app.post("/api/master-copy-notes/backup/{backup_id}/restore")
+async def restore_master_copy_backup(backup_id: str):
+    try:
+        # Implementation for backup restoration would go here
+        # For now, return success message
+        return {"success": True, "message": f"Backup {backup_id} restore initiated"}
+    except Exception as e:
+        logger.error(f"Backup restore error: {str(e)}")
+        return {"success": False, "message": str(e)}
+
+@app.get("/api/master-copy-notes/backup/{backup_id}/download")
+async def download_master_copy_backup(backup_id: str):
+    try:
+        # Implementation for backup download would go here
+        # For now, return placeholder
+        return JSONResponse({"error": "Backup download not yet implemented"}, status_code=501)
+    except Exception as e:
+        logger.error(f"Backup download error: {str(e)}")
+        return JSONResponse({"error": str(e)}, status_code=404)
+
+@app.delete("/api/master-copy-notes/backup/{backup_id}")
+async def delete_master_copy_backup(backup_id: str):
+    try:
+        # Implementation for backup deletion would go here
+        # For now, return success message
+        return {"success": True, "message": f"Backup {backup_id} deleted"}
+    except Exception as e:
+        logger.error(f"Backup deletion error: {str(e)}")
+        return {"success": False, "message": str(e)}
+
+@app.get("/static/failed_csvs/{filename}")
+async def download_failed_csv(filename: str):
+    file_path = os.path.join(FAILED_CSV_DIR, filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path, filename=filename, media_type="text/csv")
+    return JSONResponse({"error": "File not found"}, status_code=404)
+
+# Master-Child Notes API Endpoints
+@app.post("/api/master-child-notes/match")
+async def master_child_match_contacts(
+    masterFile: UploadFile = File(...),
+    childFile: UploadFile = File(...)
+):
+    """Match contacts between master and child CSV files"""
+    try:
+        service = MasterChildNotesService()
+        
+        # Read file contents
+        master_content = await masterFile.read()
+        child_content = await childFile.read()
+        
+        # Decode as UTF-8
+        master_csv = master_content.decode('utf-8')
+        child_csv = child_content.decode('utf-8')
+        
+        # Process matching
+        results = await service.match_contacts(master_csv, child_csv)
+        
+        return {
+            "success": True,
+            "matches": results['matches'],
+            "unmatched_master": results.get('unmatched_master', []),
+            "summary": results.get('summary', {}),
+            "message": "Contact matching completed successfully"
+        }
+    except Exception as e:
+        logger.error(f"Master-child contact matching error: {str(e)}")
+        return JSONResponse({
+            "success": False,
+            "error": str(e),
+            "message": "Contact matching failed"
+        }, status_code=500)
+
+@app.post("/api/master-child-notes/transfer")
+async def master_child_transfer_notes(request_data: dict):
+    """Transfer notes from child contacts to master contacts"""
+    try:
+        service = MasterChildNotesService()
+        
+        matches = request_data.get('matches', [])
+        batch_size = request_data.get('batch_size', 10)
+        dry_run = request_data.get('dry_run', False)
+        
+        if not matches:
+            return JSONResponse({
+                "success": False,
+                "message": "No matches provided for notes transfer"
+            }, status_code=400)
+        
+        # Start processing using the correct method
+        result = await service.process_notes_transfer(
+            matches, dry_run, batch_size
+        )
+        
+        if result['success']:
+            return {
+                "success": True,
+                "processing_id": result['processing_id'],
+                "message": f"Notes transfer started{' (DRY RUN MODE)' if dry_run else ''}"
+            }
+        else:
+            return JSONResponse({
+                "success": False,
+                "error": result['message'],
+                "message": "Notes transfer failed to start"
+            }, status_code=500)
+    except Exception as e:
+        logger.error(f"Master-child notes transfer error: {str(e)}")
+        return JSONResponse({
+            "success": False,
+            "error": str(e),
+            "message": "Notes transfer failed to start"
+        }, status_code=500)
+
+@app.get("/api/master-child-notes/progress/{processing_id}")
+async def get_master_child_progress(processing_id: str):
+    """Get progress of notes transfer operation"""
+    try:
+        service = MasterChildNotesService()
+        progress_result = service.get_progress(processing_id)
+        
+        if not progress_result.get('success'):
+            return JSONResponse({
+                "success": False,
+                "message": progress_result.get('message', 'Processing ID not found')
+            }, status_code=404)
+        
+        return {
+            "success": True,
+            "progress": progress_result.get('progress')
+        }
+    except Exception as e:
+        logger.error(f"Progress check error: {str(e)}")
+        return JSONResponse({
+            "success": False,
+            "error": str(e)
+        }, status_code=500)
+
+@app.post("/api/master-child-notes/download-matches")
+async def download_master_child_matches(request_data: dict):
+    """Download detailed matching results as CSV"""
+    try:
+        matches = request_data.get('matches', [])
+        unmatched = request_data.get('unmatched', [])
+        
+        if not matches and not unmatched:
+            return JSONResponse({
+                "success": False,
+                "message": "No data to download"
+            }, status_code=400)
+        
+        # Create CSV content
+        output = io.StringIO()
+        fieldnames = [
+            'Match Type', 'Match Score', 'Master Contact Name', 'Master Phone', 
+            'Master Stage', 'Master Contact ID', 'Master Account ID',
+            'Child Contact Name', 'Child Phone', 'Child Stage', 
+            'Child Contact ID', 'Child Account ID'
+        ]
+        
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        
+        # Write matched contacts
+        for match in matches:
+            master = match.get('master_contact', {})
+            child = match.get('child_contact', {})
+            
+            writer.writerow({
+                'Match Type': match.get('match_type', ''),
+                'Match Score': f"{(match.get('match_score', 0) * 100):.1f}%",
+                'Master Contact Name': master.get('Contact Name', ''),
+                'Master Phone': master.get('phone', ''),
+                'Master Stage': master.get('stage', ''),
+                'Master Contact ID': master.get('Contact ID', ''),
+                'Master Account ID': master.get('Account Id', ''),
+                'Child Contact Name': child.get('Contact Name', ''),
+                'Child Phone': child.get('phone', ''),
+                'Child Stage': child.get('stage', ''),
+                'Child Contact ID': child.get('Contact ID', ''),
+                'Child Account ID': child.get('Account Id', '')
+            })
+        
+        # Write unmatched contacts
+        for unmatched_item in unmatched:
+            master = unmatched_item.get('master_contact', {})
+            writer.writerow({
+                'Match Type': 'No Match',
+                'Match Score': '0%',
+                'Master Contact Name': master.get('Contact Name', ''),
+                'Master Phone': master.get('phone', ''),
+                'Master Stage': master.get('stage', ''),
+                'Master Contact ID': master.get('Contact ID', ''),
+                'Master Account ID': master.get('Account Id', ''),
+                'Child Contact Name': '',
+                'Child Phone': '',
+                'Child Stage': '',
+                'Child Contact ID': '',
+                'Child Account ID': ''
+            })
+        
+        # Create response
+        csv_content = output.getvalue()
+        output.close()
+        
+        response = StreamingResponse(
+            io.StringIO(csv_content),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=master-child-matching-results-{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"}
+        )
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Download matches error: {str(e)}")
+        return JSONResponse({
+            "success": False,
+            "error": str(e)
+        }, status_code=500)

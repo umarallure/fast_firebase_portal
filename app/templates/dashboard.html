@@ -43,8 +43,51 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <div id="dashboard-content">
-    <div class="mb-3 text-end">
-        <button class="btn btn-primary" id="today-export-btn">Today Export</button>
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-download fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Data Export</h5>
+                    <p class="card-text">Export opportunities and data from selected subaccounts</p>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" id="today-export-btn">Start Standard Export</button>
+                        <a href="/enhanced-dashboard" class="btn btn-outline-primary">
+                            <i class="fas fa-star"></i> Enhanced Export with Contact Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-exchange-alt fa-3x text-success mb-3"></i>
+                    <h5 class="card-title">Smart GHL Migration System</h5>
+                    <p class="card-text">Intelligent migration of contacts and opportunities with smart mapping</p>
+                    <div class="d-grid gap-2">
+                        <a href="/combined-migration" class="btn btn-success btn-lg">
+                            <i class="fas fa-sync-alt"></i> Combined Migration (Recommended)
+                        </a>
+                        <div class="row">
+                            <div class="col-6">
+                                <a href="/contact-migration" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-users"></i> Phase 1 Only
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a href="/opportunity-migration" class="btn btn-info btn-sm">
+                                    <i class="fas fa-sitemap"></i> Phase 2 Only
+                                </a>
+                            </div>
+                        </div>
+                        <a href="/migration" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-cogs"></i> Legacy Tools
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="export-workflow" style="display:none;">

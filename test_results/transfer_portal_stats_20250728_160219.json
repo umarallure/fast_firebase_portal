@@ -1,0 +1,10 @@
+{
+  "total_child_entries": 1953,
+  "entries_found_in_master": 2,
+  "entries_found_by_composite": 0,
+  "entries_found_by_phone_and_name": 2,
+  "new_entries_count": 1951,
+  "processing_timestamp": "2025-07-28T16:02:19.848945",
+  "account_mapping_used": true,
+  "matching_method": "phone_and_name_composite"
+}

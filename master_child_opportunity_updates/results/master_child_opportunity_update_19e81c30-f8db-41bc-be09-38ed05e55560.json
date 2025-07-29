@@ -1,0 +1,12 @@
+{
+  "processing_id": "19e81c30-f8db-41bc-be09-38ed05e55560",
+  "timestamp": "2025-07-26T23:45:16.448212",
+  "summary": {
+    "total_matches": 202,
+    "successful_updates": 202,
+    "failed_updates": 0,
+    "dry_run": true
+  },
+  "matches_processed": 202,
+  "final_errors": []
+}

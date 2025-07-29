@@ -1,0 +1,592 @@
+{% extends "base.html" %}
+
+{% block title %}GHL Migration Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header pb-0 d-flex justify-content-between align-items-center">
+                    <h6>GoHighLevel Migration Dashboard</h6>
+                    <div>
+                        <button class="btn btn-outline-info btn-sm me-2" onclick="testConnections()">
+                            <i class="fas fa-plug"></i> Test Connections
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="previewMigration()">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                        <button class="btn btn-info btn-sm" onclick="analyzeMigration()">
+                            <i class="fas fa-brain"></i> Smart Analysis
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body px-0 pt-0 pb-2">
+                    <!-- Connection Status -->
+                    <div class="row px-3 mb-3">
+                        <div class="col-md-6">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <h6 class="text-uppercase text-xs font-weight-bolder opacity-7">Child Account</h6>
+                                    <div id="child-status" class="mb-2">
+                                        <span class="badge badge-sm bg-secondary">Not Tested</span>
+                                    </div>
+                                    <p id="child-location" class="text-xs mb-0">Location ID: Loading...</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <h6 class="text-uppercase text-xs font-weight-bolder opacity-7">Master Account</h6>
+                                    <div id="master-status" class="mb-2">
+                                        <span class="badge badge-sm bg-secondary">Not Tested</span>
+                                    </div>
+                                    <p id="master-location" class="text-xs mb-0">Location ID: Loading...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Migration Preview -->
+                    <div id="migration-preview" class="row px-3 mb-3" style="display: none;">
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Migration Preview</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="text-center">
+                                                <h4 id="preview-custom-fields" class="text-primary">0</h4>
+                                                <p class="text-xs mb-0">Custom Fields to Create</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center">
+                                                <h4 id="preview-contacts" class="text-info">0</h4>
+                                                <p class="text-xs mb-0">Contacts to Migrate</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center">
+                                                <h4 id="preview-opportunities" class="text-success">0</h4>
+                                                <p class="text-xs mb-0">Opportunities to Migrate</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="text-center">
+                                                <h4 id="preview-pipelines" class="text-warning">0</h4>
+                                                <p class="text-xs mb-0">Missing Pipelines</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Smart Analysis Results -->
+                    <div id="smart-analysis" class="row px-3 mb-3" style="display: none;">
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Smart Mapping Analysis</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row mb-3">
+                                        <div class="col-md-4">
+                                            <div class="text-center">
+                                                <div id="readiness-circle" class="mx-auto mb-2" style="width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white;">
+                                                    0%
+                                                </div>
+                                                <p class="text-xs mb-0">Migration Readiness</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-8">
+                                            <div id="readiness-details">
+                                                <p class="text-xs mb-1"><strong>Pipeline Readiness:</strong> <span id="pipeline-readiness">0%</span></p>
+                                                <p class="text-xs mb-1"><strong>Field Readiness:</strong> <span id="field-readiness">0%</span></p>
+                                                <p class="text-xs mb-1"><strong>Can Proceed:</strong> <span id="can-proceed">Unknown</span></p>
+                                                <div id="readiness-warnings" style="display: none;">
+                                                    <p class="text-xs mb-1"><strong>Warnings:</strong></p>
+                                                    <ul id="warning-list" class="text-xs"></ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6 class="text-xs font-weight-bolder opacity-7">SMART FIELD MAPPING</h6>
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-xs">Auto-mapped:</span>
+                                                <span class="text-xs" id="fields-auto-mapped">0</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-xs">To create:</span>
+                                                <span class="text-xs" id="fields-to-create">0</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-xs">Type mismatches:</span>
+                                                <span class="text-xs" id="field-mismatches">0</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6 class="text-xs font-weight-bolder opacity-7">SMART PIPELINE MAPPING</h6>
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-xs">Auto-mapped:</span>
+                                                <span class="text-xs" id="pipelines-auto-mapped">0</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-xs">Stages mapped:</span>
+                                                <span class="text-xs" id="stages-mapped">0</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-xs">Missing pipelines:</span>
+                                                <span class="text-xs" id="pipelines-missing">0</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Migration Controls -->
+                    <div class="row px-3 mb-3">
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-body text-center">
+                                    <button id="start-migration-btn" class="btn btn-success btn-lg" onclick="startMigration()">
+                                        <i class="fas fa-play"></i> Start Migration
+                                    </button>
+                                    <p class="text-xs mt-2 mb-0">This will migrate all data from child to master account</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Active Migrations -->
+                    <div class="row px-3">
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">Migration History</h6>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="refreshMigrations()">
+                                        <i class="fas fa-sync"></i> Refresh
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div id="migrations-list">
+                                        <p class="text-center text-muted">Loading migrations...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Migration Progress Modal -->
+<div class="modal fade" id="migrationProgressModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Migration Progress</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="migration-progress-content">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Initializing migration...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentMigrationId = null;
+let migrationInterval = null;
+
+// Test API connections
+async function testConnections() {
+    try {
+        const response = await fetch('/api/v1/migration/test-connection');
+        const data = await response.json();
+        
+        // Update child status
+        const childStatus = document.getElementById('child-status');
+        const childLocation = document.getElementById('child-location');
+        if (data.child_account.status === 'connected') {
+            childStatus.innerHTML = '<span class="badge badge-sm bg-success">Connected</span>';
+            childLocation.textContent = `Location ID: ${data.child_account.location_id} (${data.child_account.pipelines_count} pipelines)`;
+        } else {
+            childStatus.innerHTML = '<span class="badge badge-sm bg-danger">Failed</span>';
+            childLocation.textContent = `Location ID: ${data.child_account.location_id}`;
+        }
+        
+        // Update master status
+        const masterStatus = document.getElementById('master-status');
+        const masterLocation = document.getElementById('master-location');
+        if (data.master_account.status === 'connected') {
+            masterStatus.innerHTML = '<span class="badge badge-sm bg-success">Connected</span>';
+            masterLocation.textContent = `Location ID: ${data.master_account.location_id} (${data.master_account.pipelines_count} pipelines)`;
+        } else {
+            masterStatus.innerHTML = '<span class="badge badge-sm bg-danger">Failed</span>';
+            masterLocation.textContent = `Location ID: ${data.master_account.location_id}`;
+        }
+        
+    } catch (error) {
+        console.error('Connection test failed:', error);
+        showNotification('Connection test failed', 'error');
+    }
+}
+
+// Preview migration data
+async function previewMigration() {
+    try {
+        const response = await fetch('/api/v1/migration/preview');
+        const data = await response.json();
+        
+        // Update preview display
+        document.getElementById('preview-custom-fields').textContent = data.migration_plan.custom_fields_to_create;
+        document.getElementById('preview-contacts').textContent = data.migration_plan.contacts_to_migrate;
+        document.getElementById('preview-opportunities').textContent = data.migration_plan.opportunities_to_migrate;
+        document.getElementById('preview-pipelines').textContent = data.migration_plan.pipelines_missing_in_master.length;
+        
+        // Show preview section
+        document.getElementById('migration-preview').style.display = 'block';
+        
+        showNotification('Migration preview loaded successfully', 'success');
+        
+    } catch (error) {
+        console.error('Preview failed:', error);
+        showNotification('Failed to load migration preview', 'error');
+    }
+}
+
+// Smart migration analysis
+async function analyzeMigration() {
+    try {
+        showNotification('Running smart migration analysis...', 'info');
+        
+        const response = await fetch('/api/v1/migration/analyze');
+        const data = await response.json();
+        
+        // Update smart analysis display
+        const readiness = data.smart_mapping_analysis.recommendations.migration_readiness;
+        
+        // Update readiness circle
+        const readinessCircle = document.getElementById('readiness-circle');
+        const readinessPercent = Math.round(readiness.overall_readiness_percent);
+        readinessCircle.textContent = `${readinessPercent}%`;
+        
+        // Color based on readiness level
+        if (readiness.readiness_level === 'high') {
+            readinessCircle.style.backgroundColor = '#28a745';
+        } else if (readiness.readiness_level === 'medium') {
+            readinessCircle.style.backgroundColor = '#ffc107';
+        } else {
+            readinessCircle.style.backgroundColor = '#dc3545';
+        }
+        
+        // Update readiness details
+        document.getElementById('pipeline-readiness').textContent = `${readiness.pipeline_readiness_percent}%`;
+        document.getElementById('field-readiness').textContent = `${readiness.field_readiness_percent}%`;
+        document.getElementById('can-proceed').textContent = readiness.can_proceed ? 'Yes' : 'No';
+        document.getElementById('can-proceed').className = readiness.can_proceed ? 'text-success' : 'text-danger';
+        
+        // Update warnings
+        if (readiness.warnings && readiness.warnings.length > 0) {
+            document.getElementById('readiness-warnings').style.display = 'block';
+            const warningList = document.getElementById('warning-list');
+            warningList.innerHTML = readiness.warnings.map(warning => `<li>${warning}</li>`).join('');
+        } else {
+            document.getElementById('readiness-warnings').style.display = 'none';
+        }
+        
+        // Update field mapping details
+        const fieldDetails = data.smart_mapping_analysis.field_details;
+        document.getElementById('fields-auto-mapped').textContent = Object.keys(fieldDetails.field_mappings).length;
+        document.getElementById('fields-to-create').textContent = fieldDetails.unmapped_fields.length;
+        document.getElementById('field-mismatches').textContent = fieldDetails.type_mismatches.length;
+        
+        // Update pipeline mapping details
+        const pipelineDetails = data.smart_mapping_analysis.pipeline_details;
+        document.getElementById('pipelines-auto-mapped').textContent = Object.keys(pipelineDetails.pipeline_mappings).length;
+        document.getElementById('stages-mapped').textContent = Object.keys(pipelineDetails.stage_mappings).length;
+        document.getElementById('pipelines-missing').textContent = pipelineDetails.unmapped_pipelines.length;
+        
+        // Show smart analysis section
+        document.getElementById('smart-analysis').style.display = 'block';
+        
+        // Update start migration button based on readiness
+        const startBtn = document.getElementById('start-migration-btn');
+        if (readiness.can_proceed) {
+            startBtn.disabled = false;
+            startBtn.className = 'btn btn-success btn-lg';
+            startBtn.innerHTML = '<i class="fas fa-play"></i> Start Migration';
+        } else {
+            startBtn.disabled = true;
+            startBtn.className = 'btn btn-warning btn-lg';
+            startBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Migration Not Ready';
+        }
+        
+        showNotification('Smart analysis completed successfully', 'success');
+        
+    } catch (error) {
+        console.error('Smart analysis failed:', error);
+        showNotification('Failed to run smart analysis', 'error');
+    }
+}
+
+// Start migration
+async function startMigration() {
+    if (!confirm('Are you sure you want to start the migration? This process cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/v1/migration/start-env', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            currentMigrationId = data.migration_id;
+            showMigrationProgress(currentMigrationId);
+            showNotification('Migration started successfully', 'success');
+        } else {
+            throw new Error(data.detail || 'Failed to start migration');
+        }
+        
+    } catch (error) {
+        console.error('Migration start failed:', error);
+        showNotification('Failed to start migration: ' + error.message, 'error');
+    }
+}
+
+// Show migration progress modal
+function showMigrationProgress(migrationId) {
+    currentMigrationId = migrationId;
+    const modal = new bootstrap.Modal(document.getElementById('migrationProgressModal'));
+    modal.show();
+    
+    // Start polling for progress
+    migrationInterval = setInterval(() => updateMigrationProgress(migrationId), 2000);
+    updateMigrationProgress(migrationId);
+}
+
+// Update migration progress
+async function updateMigrationProgress(migrationId) {
+    try {
+        const response = await fetch(`/api/v1/migration/status/${migrationId}`);
+        const data = await response.json();
+        
+        const content = document.getElementById('migration-progress-content');
+        
+        if (data.status === 'completed' || data.status === 'failed') {
+            clearInterval(migrationInterval);
+            
+            content.innerHTML = `
+                <div class="text-center mb-3">
+                    <i class="fas fa-${data.status === 'completed' ? 'check-circle text-success' : 'exclamation-circle text-danger'}" style="font-size: 3rem;"></i>
+                    <h4 class="mt-2">Migration ${data.status === 'completed' ? 'Completed' : 'Failed'}</h4>
+                    ${data.duration_minutes ? `<p>Duration: ${data.duration_minutes.toFixed(2)} minutes</p>` : ''}
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Custom Fields</h6>
+                        <p>Status: <span class="badge bg-${getStatusColor(data.custom_fields.status)}">${data.custom_fields.status}</span></p>
+                        <p>Mapped: ${data.custom_fields.mapped_count}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Pipelines</h6>
+                        <p>Status: <span class="badge bg-${getStatusColor(data.pipelines.status)}">${data.pipelines.status}</span></p>
+                        <p>Mapped: ${data.pipelines.mapped_count}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Contacts</h6>
+                        <p>Status: <span class="badge bg-${getStatusColor(data.contacts.status)}">${data.contacts.status}</span></p>
+                        <p>Mapped: ${data.contacts.mapped_count}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Opportunities</h6>
+                        <p>Status: <span class="badge bg-${getStatusColor(data.opportunities.status)}">${data.opportunities.status}</span></p>
+                        <p>Created: ${data.opportunities.created_count || 0}</p>
+                    </div>
+                </div>
+                
+                ${data.errors && data.errors.length > 0 ? `
+                    <div class="mt-3">
+                        <h6>Errors</h6>
+                        <div class="alert alert-danger">
+                            ${data.errors.map(error => `<div>${error}</div>`).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+            
+            refreshMigrations();
+        } else {
+            content.innerHTML = `
+                <div class="text-center mb-3">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h4 class="mt-2">Migration ${data.status === 'running' ? 'In Progress' : 'Starting'}</h4>
+                    ${data.start_time ? `<p>Started: ${new Date(data.start_time).toLocaleString()}</p>` : ''}
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Custom Fields</h6>
+                        <div class="progress mb-2">
+                            <div class="progress-bar ${getProgressColor(data.custom_fields.status)}" style="width: ${getProgressWidth(data.custom_fields.status)}%"></div>
+                        </div>
+                        <p class="text-xs">Status: ${data.custom_fields.status}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Pipelines</h6>
+                        <div class="progress mb-2">
+                            <div class="progress-bar ${getProgressColor(data.pipelines.status)}" style="width: ${getProgressWidth(data.pipelines.status)}%"></div>
+                        </div>
+                        <p class="text-xs">Status: ${data.pipelines.status}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Contacts</h6>
+                        <div class="progress mb-2">
+                            <div class="progress-bar ${getProgressColor(data.contacts.status)}" style="width: ${getProgressWidth(data.contacts.status)}%"></div>
+                        </div>
+                        <p class="text-xs">Status: ${data.contacts.status}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Opportunities</h6>
+                        <div class="progress mb-2">
+                            <div class="progress-bar ${getProgressColor(data.opportunities.status)}" style="width: ${getProgressWidth(data.opportunities.status)}%"></div>
+                        </div>
+                        <p class="text-xs">Status: ${data.opportunities.status}</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+    } catch (error) {
+        console.error('Failed to get migration status:', error);
+    }
+}
+
+// Refresh migrations list
+async function refreshMigrations() {
+    try {
+        const response = await fetch('/api/v1/migration/list');
+        const data = await response.json();
+        
+        const migrationsList = document.getElementById('migrations-list');
+        
+        if (data.migrations.length === 0) {
+            migrationsList.innerHTML = '<p class="text-center text-muted">No migrations found</p>';
+            return;
+        }
+        
+        migrationsList.innerHTML = data.migrations.map(migration => `
+            <div class="card border-0 shadow-sm mb-2">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <h6 class="mb-0">${migration.migration_id.substring(0, 8)}...</h6>
+                            <p class="text-xs mb-0">${migration.start_time ? new Date(migration.start_time).toLocaleString() : 'Not started'}</p>
+                        </div>
+                        <div class="col-md-2">
+                            <span class="badge bg-${getStatusColor(migration.status)}">${migration.status}</span>
+                        </div>
+                        <div class="col-md-2">
+                            <p class="text-xs mb-0">Fields: ${migration.custom_fields.mapped_count}</p>
+                        </div>
+                        <div class="col-md-2">
+                            <p class="text-xs mb-0">Contacts: ${migration.contacts.mapped_count}</p>
+                        </div>
+                        <div class="col-md-2">
+                            <p class="text-xs mb-0">Opps: ${migration.opportunities.created_count || 0}</p>
+                        </div>
+                        <div class="col-md-1">
+                            <button class="btn btn-outline-info btn-sm" onclick="showMigrationProgress('${migration.migration_id}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+    } catch (error) {
+        console.error('Failed to refresh migrations:', error);
+    }
+}
+
+// Helper functions
+function getStatusColor(status) {
+    switch (status) {
+        case 'completed': return 'success';
+        case 'failed': return 'danger';
+        case 'running': return 'primary';
+        case 'pending': return 'warning';
+        default: return 'secondary';
+    }
+}
+
+function getProgressColor(status) {
+    switch (status) {
+        case 'completed': return 'bg-success';
+        case 'failed': return 'bg-danger';
+        case 'running': return 'bg-primary';
+        default: return 'bg-warning';
+    }
+}
+
+function getProgressWidth(status) {
+    switch (status) {
+        case 'completed': return 100;
+        case 'failed': return 100;
+        case 'running': return 50;
+        default: return 25;
+    }
+}
+
+function showNotification(message, type) {
+    // Implementation depends on your notification system
+    console.log(`${type.toUpperCase()}: ${message}`);
+}
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    testConnections();
+    refreshMigrations();
+});
+
+// Clean up intervals when page unloads
+window.addEventListener('beforeunload', function() {
+    if (migrationInterval) {
+        clearInterval(migrationInterval);
+    }
+});
+</script>
+{% endblock %}

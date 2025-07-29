@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+{% block content %}
+<script>
+if (!window.firebase) {
+    // Load Firebase if not already loaded
+    var script1 = document.createElement('script');
+    script1.src = "https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js";
+    document.head.appendChild(script1);
+    var script2 = document.createElement('script');
+    script2.src = "https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js";
+    document.head.appendChild(script2);
+}
+document.addEventListener('DOMContentLoaded', function() {
+    // Hide content until auth is checked
+    document.getElementById('master-copy-notes-content').style.display = 'none';
+    function checkAuth() {
+        if (!window.firebase || !firebase.auth) {
+            setTimeout(checkAuth, 100);
+            return;
+        }
+        const firebaseConfig = {
+            apiKey: "AIzaSyASVU8LlpqQ4Dpc-BSSfxyRbsCXJtgjKy4",
+            authDomain: "automation-portal-7a891.firebaseapp.com",
+            databaseURL: "https://automation-portal-7a891.firebaseio.com",
+            projectId: "automation-portal-7a891",
+            storageBucket: "automation-portal-7a891.appspot.com",
+            messagingSenderId: "850682394607",
+            appId: "1:850682394607:web:e42c2edd1ed536a64f281a"
+        };
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        firebase.auth().onAuthStateChanged(function(user) {
+            if (!user) {
+                window.location.href = "/login";
+            } else {
+                document.getElementById('master-copy-notes-content').style.display = '';
+            }
+        });
+    }
+    checkAuth();
+});
+</script>
+
+<div class="container mt-5" id="master-copy-notes-content" style="display: none;">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-success">
+                <h4><i class="fas fa-copy"></i> Master Copy Notes - Advanced Bulk Update System</h4>
+                <p class="mb-0">Enhanced version of bulk notes update with additional features including validation, backup, progress tracking, and advanced error handling.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs mb-4" id="masterCopyTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload-pane" type="button" role="tab">
+                <i class="fas fa-upload"></i> Upload & Process
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="validate-tab" data-bs-toggle="tab" data-bs-target="#validate-pane" type="button" role="tab">
+                <i class="fas fa-check-circle"></i> Validation
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="backup-tab" data-bs-toggle="tab" data-bs-target="#backup-pane" type="button" role="tab">
+                <i class="fas fa-shield-alt"></i> Backup & History
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="templates-tab" data-bs-toggle="tab" data-bs-target="#templates-pane" type="button" role="tab">
+                <i class="fas fa-file-alt"></i> Templates
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="masterCopyTabContent">
+        <!-- Upload & Process Tab -->
+        <div class="tab-pane fade show active" id="upload-pane" role="tabpanel">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-file-upload"></i> Upload CSV for Master Copy Notes</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="master-csv-upload-form" enctype="multipart/form-data">
+                                <div class="mb-3">
+                                    <label for="masterCsvFile" class="form-label">Select CSV File</label>
+                                    <input class="form-control" type="file" id="masterCsvFile" name="csvFile" accept=".csv" required />
+                                    <div class="form-text">
+                                        Required columns: Contact ID, Notes, Account Id
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="enableBackup" name="enableBackup" checked>
+                                        <label class="form-check-label" for="enableBackup">
+                                            Create backup before processing
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="enableValidation" name="enableValidation" checked>
+                                        <label class="form-check-label" for="enableValidation">
+                                            Enable pre-processing validation
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="batchSize" class="form-label">Batch Size</label>
+                                    <select class="form-select" id="batchSize" name="batchSize">
+                                        <option value="10">10 (Slow but safe)</option>
+                                        <option value="25" selected>25 (Recommended)</option>
+                                        <option value="50">50 (Fast)</option>
+                                        <option value="100">100 (Very fast, higher error risk)</option>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="operationName" class="form-label">Operation Name (Optional)</label>
+                                    <input type="text" class="form-control" id="operationName" name="operationName" placeholder="e.g., Q1 2025 Customer Follow-up">
+                                    <div class="form-text">Give this operation a name for tracking purposes</div>
+                                </div>
+
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="fas fa-rocket"></i> Start Master Copy Process
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i class="fas fa-info-circle"></i> Enhanced Features</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success"></i> Pre-processing validation</li>
+                                <li><i class="fas fa-check text-success"></i> Automatic backup creation</li>
+                                <li><i class="fas fa-check text-success"></i> Real-time progress tracking</li>
+                                <li><i class="fas fa-check text-success"></i> Detailed error reporting</li>
+                                <li><i class="fas fa-check text-success"></i> Batch processing control</li>
+                                <li><i class="fas fa-check text-success"></i> Operation history</li>
+                                <li><i class="fas fa-check text-success"></i> CSV templates</li>
+                                <li><i class="fas fa-check text-success"></i> Rollback capability</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="card mt-3">
+                        <div class="card-header bg-warning text-dark">
+                            <h6 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Important Notes</h6>
+                        </div>
+                        <div class="card-body">
+                            <small>
+                                <ul class="mb-0">
+                                    <li>Always create a backup before bulk operations</li>
+                                    <li>Test with a small batch first</li>
+                                    <li>Larger batches are faster but may have higher error rates</li>
+                                    <li>Operations are logged for audit purposes</li>
+                                </ul>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress and Status Section -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div id="master-upload-status"></div>
+                    <div id="master-progress-container" style="display: none;">
+                        <div class="card">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0"><i class="fas fa-tasks"></i> Processing Progress</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="progress mb-3">
+                                    <div id="master-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                         role="progressbar" style="width: 0%"></div>
+                                </div>
+                                <div id="master-progress-details"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Validation Tab -->
+        <div class="tab-pane fade" id="validate-pane" role="tabpanel">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-check-circle"></i> CSV Validation Results</h5>
+                </div>
+                <div class="card-body" id="validation-results">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Upload a CSV file in the Upload tab to see validation results here.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Backup & History Tab -->
+        <div class="tab-pane fade" id="backup-pane" role="tabpanel">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-warning text-dark">
+                            <h6 class="mb-0"><i class="fas fa-shield-alt"></i> Backup Management</h6>
+                        </div>
+                        <div class="card-body">
+                            <button class="btn btn-outline-primary mb-3" id="create-manual-backup-btn">
+                                <i class="fas fa-plus"></i> Create Manual Backup
+                            </button>
+                            <div id="backup-list">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> Backup list will be loaded here.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-secondary text-white">
+                            <h6 class="mb-0"><i class="fas fa-history"></i> Operation History</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="operation-history">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> Operation history will be displayed here.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Templates Tab -->
+        <div class="tab-pane fade" id="templates-pane" role="tabpanel">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-file-alt"></i> CSV Templates and Examples</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-download"></i> Download Templates</h6>
+                            <div class="list-group">
+                                <a href="#" class="list-group-item list-group-item-action" id="download-basic-template">
+                                    <i class="fas fa-file-csv"></i> Basic Notes Template
+                                </a>
+                                <a href="#" class="list-group-item list-group-item-action" id="download-advanced-template">
+                                    <i class="fas fa-file-csv"></i> Advanced Notes Template (with metadata)
+                                </a>
+                                <a href="#" class="list-group-item list-group-item-action" id="download-sample-data">
+                                    <i class="fas fa-file-csv"></i> Sample Data for Testing
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-table"></i> Required Format</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Column Name</th>
+                                            <th>Required</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Contact ID</td>
+                                            <td><span class="badge bg-danger">Yes</span></td>
+                                            <td>GHL Contact ID</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Notes</td>
+                                            <td><span class="badge bg-danger">Yes</span></td>
+                                            <td>Note content to add</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Account Id</td>
+                                            <td><span class="badge bg-danger">Yes</span></td>
+                                            <td>GHL Account/Location ID</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Priority</td>
+                                            <td><span class="badge bg-secondary">No</span></td>
+                                            <td>Note priority (1-5)</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Category</td>
+                                            <td><span class="badge bg-secondary">No</span></td>
+                                            <td>Note category/tag</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', path='js/master-copy-notes.js') }}"></script>
+{% endblock %}

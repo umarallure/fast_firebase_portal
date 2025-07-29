@@ -1,0 +1,6 @@
+Contact ID,Notes,Account Id,Priority,Category
+example_contact_001,Initial consultation completed. Customer interested in term life insurance.,sample_account_123,2,Consultation
+example_contact_002,Quote sent for auto insurance. Waiting for customer response.,sample_account_123,3,Quote
+example_contact_003,Policy renewal reminder sent. Customer needs to update beneficiary info.,sample_account_456,1,Renewal
+example_contact_004,Claim processed successfully. Customer satisfied with service.,sample_account_456,4,Claim
+example_contact_005,New customer onboarding scheduled for next week.,sample_account_789,2,Onboarding

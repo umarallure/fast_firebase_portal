@@ -1,0 +1,14 @@
+# Contact Migration Environment Variables
+
+# Custom tag to add to all migrated contacts
+CONTACT_MIGRATION_TAG=migrated-from-child
+
+# Test limit - set to 5 for testing, 0 for no limit (process all contacts)
+CONTACT_MIGRATION_TEST_LIMIT=5
+
+# Example values - add these to your .env file:
+# Your existing variables should also be present:
+# GHL_CHILD_LOCATION_ID=your_child_location_id
+# GHL_MASTER_LOCATION_ID=your_master_location_id  
+# GHL_CHILD_LOCATION_API_KEY=your_child_api_key
+# GHL_MASTER_LOCATION_API_KEY=your_master_api_key

@@ -1,0 +1,12 @@
+{
+  "processing_id": "6a122051-d9dc-42bb-8e82-bf6918f21f94",
+  "timestamp": "2025-07-22T21:43:55.821778",
+  "summary": {
+    "total_opportunities": 136,
+    "successful_updates": 136,
+    "failed_updates": 0,
+    "dry_run": false
+  },
+  "opportunities_processed": 136,
+  "final_errors": []
+}

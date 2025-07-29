@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Migration Dashboard - GHL Migration Tool</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .dashboard-card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            transition: box-shadow 0.15s ease-in-out;
+        }
+        .dashboard-card:hover {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-connected { background-color: #28a745; }
+        .status-disconnected { background-color: #dc3545; }
+        .status-checking { background-color: #ffc107; }
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+        .feature-disabled {
+            opacity: 0.6;
+            background-color: #f8f9fa;
+            border: 2px dashed #dee2e6;
+        }
+        .migration-type-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+        .contact-focus {
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    {% extends "base.html" %}
+    
+    {% block content %}
+    <div class="container-fluid mt-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">
+                            <i class="fas fa-users text-primary me-2"></i>
+                            Contact Migration Dashboard
+                        </h1>
+                        <p class="text-muted mt-2">Migrate contacts with custom field mapping between GHL accounts</p>
+                    </div>
+                    <div>
+                        <span class="badge bg-primary fs-6">Phase 1: Contacts Only</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Connection Status -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card dashboard-card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-plug me-2"></i>
+                            Connection Status
+                        </h5>
+                        <div id="connectionStatus">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="status-indicator status-checking"></span>
+                                <span>Checking connections...</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline-primary btn-sm" onclick="testConnection()">
+                            <i class="fas fa-sync-alt me-1"></i>
+                            Test Connection
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card dashboard-card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-cog me-2"></i>
+                            Migration Configuration
+                        </h5>
+                        <div id="configInfo">
+                            <small class="text-muted">Loading configuration...</small>
+                        </div>
+                        <button class="btn btn-outline-secondary btn-sm mt-2" onclick="loadConfig()">
+                            <i class="fas fa-refresh me-1"></i>
+                            Refresh Config
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Migration Preview -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card dashboard-card contact-focus">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-eye me-2"></i>
+                            Migration Preview
+                        </h5>
+                        <span class="badge bg-info">Contact-Only Mode</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="previewData">
+                            <div class="text-center py-4">
+                                <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                                <p class="mt-2 text-muted">Loading preview data...</p>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-primary" onclick="loadPreview()">
+                                <i class="fas fa-refresh me-1"></i>
+                                Refresh Preview
+                            </button>
+                            <button class="btn btn-warning ms-2" onclick="verifyMasterAccount()">
+                                <i class="fas fa-search me-1"></i>
+                                Verify Master Account
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Migration Controls -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card dashboard-card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-play-circle me-2"></i>
+                            Contact Migration Controls
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="alert alert-info" role="alert">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Phase 1 Migration:</strong> This will migrate only contacts and their custom fields. 
+                                    Opportunities and pipelines are excluded in this phase.
+                                </div>
+                                <div id="migrationStatus" class="mb-3" style="display: none;">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <h6 class="mb-0">Migration Progress</h6>
+                                                <span id="progressPercentage" class="badge bg-primary">0%</span>
+                                            </div>
+                                            <div class="progress mb-2">
+                                                <div id="progressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                            </div>
+                                            <small id="progressMessage" class="text-muted">Initializing...</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <button id="startMigrationBtn" class="btn btn-success btn-lg" onclick="startContactMigration()">
+                                    <i class="fas fa-rocket me-2"></i>
+                                    Start Contact Migration
+                                </button>
+                                <button id="stopMigrationBtn" class="btn btn-danger" style="display: none;" onclick="stopMigration()">
+                                    <i class="fas fa-stop me-2"></i>
+                                    Stop Migration
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Migration History -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card dashboard-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2"></i>
+                            Contact Migration History
+                        </h5>
+                        <button class="btn btn-outline-danger btn-sm" onclick="clearHistory()">
+                            <i class="fas fa-trash me-1"></i>
+                            Clear History
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="migrationHistory">
+                            <div class="text-center py-4">
+                                <i class="fas fa-clock fa-2x text-muted"></i>
+                                <p class="mt-2 text-muted">Loading migration history...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Modal -->
+    <div class="modal fade" id="progressModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-cogs me-2"></i>
+                        Contact Migration Progress
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <div id="detailedProgress">
+                        <div class="text-center py-4">
+                            <i class="fas fa-spinner fa-spin fa-3x text-primary"></i>
+                            <h4 class="mt-3">Starting Contact Migration...</h4>
+                            <p class="text-muted">Please wait while we process your contacts</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Run in Background
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentMigrationId = null;
+        let progressInterval = null;
+
+        // Load initial data
+        document.addEventListener('DOMContentLoaded', function() {
+            testConnection();
+            loadConfig();
+            loadPreview();
+            loadMigrationHistory();
+        });
+
+        async function testConnection() {
+            try {
+                const response = await fetch('/api/v1/contact-migration/test-connection');
+                const data = await response.json();
+                
+                const statusDiv = document.getElementById('connectionStatus');
+                if (response.ok) {
+                    statusDiv.innerHTML = `
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="status-indicator status-connected"></span>
+                            <span><strong>Child Account:</strong> Connected (${data.child_account.custom_fields_count} custom fields)</span>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="status-indicator status-connected"></span>
+                            <span><strong>Master Account:</strong> Connected (${data.master_account.custom_fields_count} custom fields)</span>
+                        </div>
+                    `;
+                } else {
+                    statusDiv.innerHTML = `
+                        <div class="d-flex align-items-center">
+                            <span class="status-indicator status-disconnected"></span>
+                            <span class="text-danger">Connection Failed</span>
+                        </div>
+                        <small class="text-muted">${data.detail}</small>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('connectionStatus').innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <span class="status-indicator status-disconnected"></span>
+                        <span class="text-danger">Connection Error</span>
+                    </div>
+                `;
+            }
+        }
+
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/v1/contact-migration/config');
+                const config = await response.json();
+                
+                document.getElementById('configInfo').innerHTML = `
+                    <div class="row text-sm">
+                        <div class="col-6">
+                            <strong>Batch Size:</strong> ${config.batch_size}
+                        </div>
+                        <div class="col-6">
+                            <strong>Rate Limit:</strong> ${config.rate_limit_delay}s
+                        </div>
+                        <div class="col-6">
+                            <strong>Max Retries:</strong> ${config.max_retries}
+                        </div>
+                        <div class="col-6">
+                            <strong>Type:</strong> Contact-Only
+                        </div>
+                    </div>
+                    ${config.test_settings.test_mode_enabled ? 
+                        `<div class="alert alert-warning alert-sm mt-2 mb-0">
+                            <i class="fas fa-flask me-1"></i> <strong>TEST MODE:</strong> Limited to ${config.test_settings.test_limit} contacts
+                        </div>` : ''
+                    }
+                    ${config.test_settings.migration_tag !== 'None' ? 
+                        `<div class="alert alert-info alert-sm mt-2 mb-0">
+                            <i class="fas fa-tag me-1"></i> <strong>Tag:</strong> ${config.test_settings.migration_tag}
+                        </div>` : ''
+                    }
+                `;
+            } catch (error) {
+                document.getElementById('configInfo').innerHTML = `
+                    <small class="text-danger">Failed to load configuration</small>
+                `;
+            }
+        }
+
+        async function loadPreview() {
+            try {
+                const response = await fetch('/api/v1/contact-migration/preview');
+                const preview = await response.json();
+                
+                const previewDiv = document.getElementById('previewData');
+                previewDiv.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card border-primary">
+                                <div class="card-body text-center">
+                                    <h3 class="text-primary">${preview.migration_plan.contacts_to_migrate}</h3>
+                                    <p class="mb-0">Contacts to Migrate</p>
+                                    ${preview.migration_plan.test_mode ? 
+                                        `<small class="text-warning"><i class="fas fa-flask"></i> TEST MODE (${preview.migration_plan.test_limit} limit)</small>` : 
+                                        `<small class="text-muted">Total: ${preview.migration_plan.total_contacts_available}</small>`
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-info">
+                                <div class="card-body text-center">
+                                    <h3 class="text-info">${preview.field_mapping_preview.custom_fields_to_map}</h3>
+                                    <p class="mb-0">Custom Fields to Map</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-success">
+                                <div class="card-body text-center">
+                                    <h3 class="text-success">${preview.field_mapping_preview.mapping_accuracy_percentage}%</h3>
+                                    <p class="mb-0">Mapping Accuracy</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        ${preview.migration_plan.migration_tag !== 'None' ? 
+                            `<div class="alert alert-info">
+                                <i class="fas fa-tag me-2"></i>
+                                <strong>Migration Tag:</strong> All migrated contacts will be tagged with "${preview.migration_plan.migration_tag}"
+                            </div>` : ''
+                        }
+                        <h6>Field Mapping Preview:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Child Field</th>
+                                        <th>Master Field</th>
+                                        <th>Mapping Confidence</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${preview.field_mapping_preview.sample_mappings.map(mapping => `
+                                        <tr>
+                                            <td>${mapping.child_field}</td>
+                                            <td>${mapping.master_field}</td>
+                                            <td>
+                                                <span class="badge ${mapping.confidence > 80 ? 'bg-success' : mapping.confidence > 60 ? 'bg-warning' : 'bg-secondary'}">
+                                                    ${mapping.confidence}%
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('previewData').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Failed to load preview data: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function startContactMigration() {
+            try {
+                // Show progress modal
+                const modal = new bootstrap.Modal(document.getElementById('progressModal'));
+                modal.show();
+                
+                // Start migration
+                const response = await fetch('/api/v1/contact-migration/start', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (response.ok) {
+                    currentMigrationId = result.migration_id;
+                    document.getElementById('startMigrationBtn').style.display = 'none';
+                    document.getElementById('stopMigrationBtn').style.display = 'inline-block';
+                    document.getElementById('migrationStatus').style.display = 'block';
+                    
+                    // Start progress monitoring
+                    progressInterval = setInterval(checkProgress, 2000);
+                } else {
+                    throw new Error(result.detail);
+                }
+            } catch (error) {
+                alert('Failed to start contact migration: ' + error.message);
+            }
+        }
+
+        async function checkProgress() {
+            if (!currentMigrationId) return;
+            
+            try {
+                const response = await fetch(`/api/v1/contact-migration/status/${currentMigrationId}`);
+                const status = await response.json();
+                
+                if (status.progress) {
+                    const percentage = status.progress.percentage || 0;
+                    document.getElementById('progressBar').style.width = percentage + '%';
+                    document.getElementById('progressPercentage').textContent = Math.round(percentage) + '%';
+                    document.getElementById('progressMessage').textContent = status.progress.message || 'Processing...';
+                    
+                    // Update detailed progress in modal
+                    document.getElementById('detailedProgress').innerHTML = `
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <span>Current Stage: ${status.current_stage || 'Unknown'}</span>
+                                <span>${Math.round(percentage)}%</span>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar" style="width: ${percentage}%"></div>
+                            </div>
+                        </div>
+                        <p>${status.progress.message}</p>
+                        ${status.progress.current && status.progress.total ? 
+                            `<small class="text-muted">Processing ${status.progress.current} of ${status.progress.total}</small>` : ''
+                        }
+                    `;
+                }
+                
+                if (status.status === 'completed' || status.status === 'failed') {
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                    currentMigrationId = null;
+                    
+                    document.getElementById('startMigrationBtn').style.display = 'inline-block';
+                    document.getElementById('stopMigrationBtn').style.display = 'none';
+                    
+                    // Hide progress and reload history
+                    setTimeout(() => {
+                        document.getElementById('migrationStatus').style.display = 'none';
+                        loadMigrationHistory();
+                    }, 3000);
+                    
+                    // Show completion message
+                    if (status.status === 'completed') {
+                        alert(`Contact migration completed successfully!\nContacts migrated: ${status.contacts?.mapped_count || 0}\nCustom fields mapped: ${status.custom_fields?.mapped_count || 0}`);
+                    } else {
+                        alert('Contact migration failed: ' + (status.errors?.join(', ') || 'Unknown error'));
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking progress:', error);
+            }
+        }
+
+        async function loadMigrationHistory() {
+            try {
+                const response = await fetch('/api/v1/contact-migration/list');
+                const data = await response.json();
+                
+                const historyDiv = document.getElementById('migrationHistory');
+                if (data.migrations.length === 0) {
+                    historyDiv.innerHTML = `
+                        <div class="text-center py-4">
+                            <i class="fas fa-inbox fa-2x text-muted"></i>
+                            <p class="mt-2 text-muted">No contact migrations found</p>
+                        </div>
+                    `;
+                } else {
+                    historyDiv.innerHTML = `
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Migration ID</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
+                                        <th>Contacts</th>
+                                        <th>Custom Fields</th>
+                                        <th>Duration</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.migrations.map(migration => `
+                                        <tr>
+                                            <td><code>${migration.id.substring(0, 8)}...</code></td>
+                                            <td>
+                                                <span class="badge ${
+                                                    migration.status === 'completed' ? 'bg-success' :
+                                                    migration.status === 'failed' ? 'bg-danger' :
+                                                    migration.status === 'running' ? 'bg-primary' : 'bg-secondary'
+                                                }">
+                                                    ${migration.status}
+                                                </span>
+                                            </td>
+                                            <td>${new Date(migration.created_time).toLocaleString()}</td>
+                                            <td>${migration.contacts_migrated}</td>
+                                            <td>${migration.custom_fields_mapped}</td>
+                                            <td>${migration.duration_minutes ? migration.duration_minutes.toFixed(1) + 'm' : '-'}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('migrationHistory').innerHTML = `
+                    <div class="alert alert-danger">
+                        Failed to load migration history
+                    </div>
+                `;
+            }
+        }
+
+        async function clearHistory() {
+            if (confirm('Are you sure you want to clear all contact migration history?')) {
+                try {
+                    await fetch('/api/v1/contact-migration/clear-history', { method: 'DELETE' });
+                    loadMigrationHistory();
+                } catch (error) {
+                    alert('Failed to clear history');
+                }
+            }
+        }
+
+        async function verifyMasterAccount() {
+            try {
+                const response = await fetch('/api/v1/contact-migration/verify-master-account');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const state = data.master_account_state;
+                    let message = `Master Account Verification:\n\n`;
+                    message += `Total Contacts: ${state.total_contacts}\n`;
+                    message += `Status: ${data.is_empty ? 'EMPTY (Ready for migration)' : 'NOT EMPTY (Contains existing contacts)'}\n`;
+                    message += `Recommendation: ${data.recommendation}\n\n`;
+                    
+                    if (state.contacts_found.length > 0) {
+                        message += `Existing contacts found:\n`;
+                        state.contacts_found.forEach((contact, index) => {
+                            message += `${index + 1}. ${contact.firstName || ''} ${contact.lastName || ''} (${contact.email || contact.phone || contact.id})\n`;
+                        });
+                    }
+                    
+                    alert(message);
+                } else {
+                    throw new Error(data.detail);
+                }
+            } catch (error) {
+                alert('Failed to verify master account: ' + error.message);
+            }
+        }
+
+        function stopMigration() {
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+            currentMigrationId = null;
+            document.getElementById('startMigrationBtn').style.display = 'inline-block';
+            document.getElementById('stopMigrationBtn').style.display = 'none';
+            document.getElementById('migrationStatus').style.display = 'none';
+        }
+    </script>
+    {% endblock %}
+</body>
+</html>

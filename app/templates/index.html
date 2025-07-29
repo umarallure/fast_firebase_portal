@@ -29,6 +29,14 @@ firebase.auth().onAuthStateChanged(function(user) {
             </div>
         </div>
         <div class="col-md-4 mb-4">
+            <div class="card automation-card h-100" style="cursor:pointer; border-left: 4px solid #28a745;" onclick="window.location.href='/master-copy-notes'">
+                <div class="card-body">
+                    <h5 class="card-title">2.5) Master Copy Notes <span class="badge bg-success">Enhanced</span></h5>
+                    <p class="card-text">Advanced bulk notes update with validation, backup, progress tracking, and error handling.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
             <div class="card automation-card h-100" style="cursor:pointer;" onclick="window.location.href='/bulk-update-opportunity'">
                 <div class="card-body">
                     <h5 class="card-title">3) Bulk Update Opportunity</h5>
@@ -37,10 +45,66 @@ firebase.auth().onAuthStateChanged(function(user) {
             </div>
         </div>
         <div class="col-md-4 mb-4">
+            <div class="card automation-card h-100" style="cursor:pointer; border-left: 4px solid #ffc107;" onclick="window.location.href='/bulk-update-opportunity-owner'">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-user-edit text-warning me-2"></i>
+                        3.2) Bulk Update Opportunity Owner <span class="badge bg-warning text-dark">New</span>
+                    </h5>
+                    <p class="card-text">Upload a CSV file to bulk update opportunity owners/assignments based on account matching with progress tracking.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card automation-card h-100" style="cursor:pointer; border-left: 4px solid #28a745;" onclick="window.location.href='/master-child-opportunity-update'">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-exchange-alt text-success me-2"></i>
+                        3.3) Master-Child Opportunity Owner Update <span class="badge bg-success">Advanced</span>
+                    </h5>
+                    <p class="card-text">Match master and child opportunities using fuzzy algorithms and update master opportunity owners based on child assignments.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card automation-card h-100" style="cursor:pointer; border-left: 4px solid #dc3545;" onclick="window.location.href='/master-child-notes'">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-exchange-alt text-danger me-2"></i>
+                        3.5) Master-Child Notes Transfer <span class="badge bg-danger">Advanced</span>
+                    </h5>
+                    <p class="card-text">Match contacts between Master and Child CSV files and transfer notes using intelligent fuzzy matching algorithms.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
             <div class="card automation-card h-100" style="cursor:pointer;" onclick="window.location.href='/audit-opportunity-matches'">
                 <div class="card-body">
                     <h5 class="card-title">4) Audit-Opportunity-Matches</h5>
                     <p class="card-text">Upload an Excel sheet to bulk Audit opportunities in GHL.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card automation-card h-100" style="cursor:pointer; border-left: 4px solid #007bff;" onclick="window.location.href='/contact-migration'">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-users text-primary me-2"></i>
+                        5) Contact Migration (Phase 1)
+                    </h5>
+                    <p class="card-text">Migrate contacts with custom field mapping between GHL accounts. Simplified contact-only mode.</p>
+                    <span class="badge bg-primary">New</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card automation-card h-100" style="cursor:pointer; border-left: 4px solid #17a2b8;" onclick="window.location.href='/transfer-portal-comparison'">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-exchange-alt text-info me-2"></i>
+                        6) Transfer Portal Comparison <span class="badge bg-info">Advanced</span>
+                    </h5>
+                    <p class="card-text">Compare child and master CSV files to find new entries not present in master database with intelligent phone and name matching.</p>
                 </div>
             </div>
         </div>
