@@ -1,0 +1,547 @@
+{% extends "base.html" %}
+{% block content %}
+<script>
+// Redirect to /login if not authenticated
+firebase.auth().onAuthStateChanged(function(user) {
+    if (!user) {
+        window.location.href = "/login";
+    }
+});
+</script>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-search text-primary me-2"></i>Lead Database Search</h2>
+                <a href="/" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                </a>
+            </div>
+            
+            <!-- Database Upload Section -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-upload me-2"></i>Step 1: Upload Lead Database</h5>
+                </div>
+                <div class="card-body">
+                    <div id="upload-section">
+                        <form id="database-upload-form" enctype="multipart/form-data">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="mb-3">
+                                        <label for="database-file" class="form-label">Select CSV Database File</label>
+                                        <input type="file" class="form-control" id="database-file" name="database_file" accept=".csv" required>
+                                        <div class="form-text">Upload your lead database CSV file. Required columns: full_name, Draft_Date, Monthly Premium, Coverage Amount, Carrier, center</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-upload me-2"></i>Upload Database
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Database Status -->
+                    <div id="database-status" class="mt-3" style="display: none;">
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <span id="status-message">Database loaded successfully</span>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h5 id="total-leads" class="text-primary">0</h5>
+                                    <small class="text-muted">Total Leads</small>
+                                </div>
+                            </div>
+                            <div class="col-md-9">
+                                <div id="database-info"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search Section -->
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-search me-2"></i>Step 2: Search for Leads</h5>
+                </div>
+                <div class="card-body">
+                    <form id="search-form">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="search-name" class="form-label">Lead Name</label>
+                                    <input type="text" class="form-control" id="search-name" name="search_name" 
+                                           placeholder="Enter full name (e.g., John Smith)" required>
+                                    <div class="form-text">Search supports name variations, typos, and first/last name swaps</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="min-score" class="form-label">Similarity Threshold</label>
+                                    <select class="form-control" id="min-score" name="min_score">
+                                        <option value="80">High (80%) - Exact matches</option>
+                                        <option value="70">Medium (70%) - Close matches</option>
+                                        <option value="60" selected>Low (60%) - Fuzzy matches</option>
+                                        <option value="50">Very Low (50%) - Loose matches</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <button type="submit" class="btn btn-success w-100" id="search-btn" disabled>
+                                    <i class="fas fa-search me-2"></i>Search
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Search Results -->
+            <div id="search-results" style="display: none;">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-list me-2"></i>Search Results</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="results-summary" class="mb-3"></div>
+                        <div id="results-container"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Loading Spinner -->
+            <div id="loading-spinner" class="text-center my-5" style="display: none;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-2">Processing...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Copy Modal -->
+<div class="modal fade" id="copyModal" tabindex="-1" aria-labelledby="copyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="copyModalLabel">Lead Information</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="copy-content"></div>
+                <div class="mt-3">
+                    <button class="btn btn-primary" onclick="copyToClipboard()">
+                        <i class="fas fa-copy me-2"></i>Copy All Information
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.result-card {
+    border-left: 4px solid #17a2b8;
+    transition: all 0.2s;
+}
+
+.result-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.score-badge {
+    font-size: 0.9em;
+}
+
+.info-row {
+    border-bottom: 1px solid #eee;
+    padding: 8px 0;
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.copy-btn {
+    font-size: 0.8em;
+    padding: 2px 8px;
+}
+
+.search-disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+</style>
+
+<script>
+let currentCopyContent = '';
+
+// Check database status on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkDatabaseStatus();
+});
+
+// Database upload form
+document.getElementById('database-upload-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    uploadDatabase();
+});
+
+// Search form
+document.getElementById('search-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    performSearch();
+});
+
+async function uploadDatabase() {
+    const formData = new FormData();
+    const fileInput = document.getElementById('database-file');
+    
+    if (!fileInput.files[0]) {
+        alert('Please select a CSV file');
+        return;
+    }
+    
+    formData.append('database_file', fileInput.files[0]);
+    
+    document.getElementById('loading-spinner').style.display = 'block';
+    
+    try {
+        const response = await fetch('/api/lead-search/upload-database', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showDatabaseStatus(result);
+            document.getElementById('search-btn').disabled = false;
+        } else {
+            alert('Error uploading database: ' + (result.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Upload error:', error);
+        alert('Error uploading database: ' + error.message);
+    } finally {
+        document.getElementById('loading-spinner').style.display = 'none';
+    }
+}
+
+async function checkDatabaseStatus() {
+    try {
+        const response = await fetch('/api/lead-search/database-status');
+        const result = await response.json();
+        
+        if (result.success && result.database_loaded) {
+            showDatabaseStatus(result);
+            document.getElementById('search-btn').disabled = false;
+        }
+    } catch (error) {
+        console.error('Status check error:', error);
+    }
+}
+
+function showDatabaseStatus(result) {
+    const statusDiv = document.getElementById('database-status');
+    const messageSpan = document.getElementById('status-message');
+    const totalLeadsSpan = document.getElementById('total-leads');
+    const infoDiv = document.getElementById('database-info');
+    
+    messageSpan.textContent = result.message || `Database loaded with ${result.stats.total_leads} leads`;
+    totalLeadsSpan.textContent = result.stats.total_leads;
+    
+    // Show top carriers and call centers
+    let infoHtml = '<div class="row"><div class="col-md-6">';
+    if (result.stats.carriers && Object.keys(result.stats.carriers).length > 0) {
+        infoHtml += '<h6>Top Carriers:</h6><ul class="list-unstyled">';
+        Object.entries(result.stats.carriers).slice(0, 5).forEach(([carrier, count]) => {
+            infoHtml += `<li><small>${carrier}: ${count}</small></li>`;
+        });
+        infoHtml += '</ul>';
+    }
+    infoHtml += '</div><div class="col-md-6">';
+    if (result.stats.call_centers && Object.keys(result.stats.call_centers).length > 0) {
+        infoHtml += '<h6>Top Call Centers:</h6><ul class="list-unstyled">';
+        Object.entries(result.stats.call_centers).slice(0, 5).forEach(([center, count]) => {
+            infoHtml += `<li><small>${center}: ${count}</small></li>`;
+        });
+        infoHtml += '</ul>';
+    }
+    infoHtml += '</div></div>';
+    
+    infoDiv.innerHTML = infoHtml;
+    statusDiv.style.display = 'block';
+}
+
+async function performSearch() {
+    const searchName = document.getElementById('search-name').value.trim();
+    const minScore = document.getElementById('min-score').value;
+    
+    if (!searchName) {
+        alert('Please enter a name to search');
+        return;
+    }
+    
+    document.getElementById('loading-spinner').style.display = 'block';
+    document.getElementById('search-results').style.display = 'none';
+    
+    try {
+        const response = await fetch(`/api/lead-search/search?name=${encodeURIComponent(searchName)}&min_score=${minScore}&max_results=10`);
+        const result = await response.json();
+        
+        if (result.success) {
+            displaySearchResults(result);
+        } else {
+            alert('Search error: ' + (result.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Search error:', error);
+        alert('Search error: ' + error.message);
+    } finally {
+        document.getElementById('loading-spinner').style.display = 'none';
+    }
+}
+
+function displaySearchResults(result) {
+    const resultsDiv = document.getElementById('search-results');
+    const summaryDiv = document.getElementById('results-summary');
+    const containerDiv = document.getElementById('results-container');
+    
+    summaryDiv.innerHTML = `
+        <div class="alert alert-info">
+            <strong>Search Results:</strong> Found ${result.results_count} matches for "${result.search_term}" 
+            (minimum similarity: ${result.min_score}%)
+        </div>
+    `;
+    
+    if (result.results_count === 0) {
+        containerDiv.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                No matches found. Try lowering the similarity threshold or checking the spelling.
+            </div>
+        `;
+    } else {
+        let resultsHtml = '';
+        
+        result.results.forEach((lead, index) => {
+            const scoreColor = lead.similarity_score >= 80 ? 'success' : 
+                             lead.similarity_score >= 70 ? 'warning' : 'info';
+            
+            resultsHtml += `
+                <div class="card result-card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title mb-0">${escapeHtml(lead.full_name)}</h5>
+                            <span class="badge bg-${scoreColor} score-badge">${lead.similarity_score}% match</span>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="info-row">
+                                    <strong>Draft Date:</strong> ${escapeHtml(lead.draft_date) || 'N/A'}
+                                    <button class="btn btn-sm btn-outline-primary copy-btn ms-2" 
+                                            onclick="copyToClipboard('${escapeHtml(lead.draft_date)}')">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <div class="info-row">
+                                    <strong>Monthly Premium:</strong> ${escapeHtml(lead.monthly_premium) || 'N/A'}
+                                    <button class="btn btn-sm btn-outline-primary copy-btn ms-2" 
+                                            onclick="copyToClipboard('${escapeHtml(lead.monthly_premium)}')">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <div class="info-row">
+                                    <strong>Coverage Amount:</strong> ${escapeHtml(lead.coverage_amount) || 'N/A'}
+                                    <button class="btn btn-sm btn-outline-primary copy-btn ms-2" 
+                                            onclick="copyToClipboard('${escapeHtml(lead.coverage_amount)}')">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-row">
+                                    <strong>Carrier:</strong> ${escapeHtml(lead.carrier) || 'N/A'}
+                                    <button class="btn btn-sm btn-outline-primary copy-btn ms-2" 
+                                            onclick="copyToClipboard('${escapeHtml(lead.carrier)}')">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <div class="info-row">
+                                    <strong>Call Center:</strong> ${escapeHtml(lead.call_center) || 'N/A'}
+                                    <button class="btn btn-sm btn-outline-primary copy-btn ms-2" 
+                                            onclick="copyToClipboard('${escapeHtml(lead.call_center)}')">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <div class="info-row">
+                                    <strong>Phone:</strong> ${escapeHtml(lead.phone) || 'N/A'}
+                                    <button class="btn btn-sm btn-outline-primary copy-btn ms-2" 
+                                            onclick="copyToClipboard('${escapeHtml(lead.phone)}')">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button class="btn btn-primary btn-sm" onclick="showFullLead(${index})">
+                                <i class="fas fa-eye me-2"></i>View All Details
+                            </button>
+                            <button class="btn btn-success btn-sm ms-2" onclick="copyFullLead(${index})">
+                                <i class="fas fa-copy me-2"></i>Copy All Info
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        containerDiv.innerHTML = resultsHtml;
+        
+        // Store results for modal display
+        window.searchResults = result.results;
+    }
+    
+    resultsDiv.style.display = 'block';
+}
+
+function showFullLead(index) {
+    const lead = window.searchResults[index];
+    let content = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Basic Information</h6>
+                <div class="info-row"><strong>Full Name:</strong> ${escapeHtml(lead.full_name)}</div>
+                <div class="info-row"><strong>Phone:</strong> ${escapeHtml(lead.phone)}</div>
+                <div class="info-row"><strong>Email:</strong> ${escapeHtml(lead.email)}</div>
+                <div class="info-row"><strong>Address:</strong> ${escapeHtml(lead.address)}</div>
+                <div class="info-row"><strong>City:</strong> ${escapeHtml(lead.city)}</div>
+                <div class="info-row"><strong>State:</strong> ${escapeHtml(lead.state)}</div>
+                <div class="info-row"><strong>Postal Code:</strong> ${escapeHtml(lead.postal_code)}</div>
+                
+                <h6 class="mt-3">Insurance Details</h6>
+                <div class="info-row"><strong>Draft Date:</strong> ${escapeHtml(lead.draft_date)}</div>
+                <div class="info-row"><strong>Monthly Premium:</strong> ${escapeHtml(lead.monthly_premium)}</div>
+                <div class="info-row"><strong>Coverage Amount:</strong> ${escapeHtml(lead.coverage_amount)}</div>
+                <div class="info-row"><strong>Carrier:</strong> ${escapeHtml(lead.carrier)}</div>
+                <div class="info-row"><strong>Call Center:</strong> ${escapeHtml(lead.call_center)}</div>
+            </div>
+            <div class="col-md-6">
+                <h6>Personal Details</h6>
+                <div class="info-row"><strong>Age:</strong> ${escapeHtml(lead.age)}</div>
+                <div class="info-row"><strong>Height:</strong> ${escapeHtml(lead.height)}</div>
+                <div class="info-row"><strong>Weight:</strong> ${escapeHtml(lead.weight)}</div>
+                <div class="info-row"><strong>Tobacco User:</strong> ${escapeHtml(lead.tobacco_user)}</div>
+                <div class="info-row"><strong>Doctor's Name:</strong> ${escapeHtml(lead.doctors_name)}</div>
+                
+                <h6 class="mt-3">Financial Details</h6>
+                <div class="info-row"><strong>Routing Number:</strong> ${escapeHtml(lead.routing_number)}</div>
+                <div class="info-row"><strong>Account Number:</strong> ${escapeHtml(lead.account_number)}</div>
+                
+                <h6 class="mt-3">Beneficiary Information</h6>
+                <div class="info-row"><strong>Beneficiary:</strong> ${escapeHtml(lead.beneficiary_information)}</div>
+                
+                <h6 class="mt-3">Health Information</h6>
+                <div class="info-row"><strong>Health Conditions:</strong> ${escapeHtml(lead.health_conditions)}</div>
+                <div class="info-row"><strong>Medications:</strong> ${escapeHtml(lead.medications)}</div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('copy-content').innerHTML = content;
+    currentCopyContent = formatLeadForCopy(lead);
+    
+    const modal = new bootstrap.Modal(document.getElementById('copyModal'));
+    modal.show();
+}
+
+function copyFullLead(index) {
+    const lead = window.searchResults[index];
+    const content = formatLeadForCopy(lead);
+    
+    navigator.clipboard.writeText(content).then(() => {
+        // Show temporary success message
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check me-2"></i>Copied!';
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-success');
+        
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-success');
+        }, 2000);
+    }).catch(err => {
+        console.error('Could not copy text: ', err);
+        alert('Failed to copy. Please try manually selecting the text.');
+    });
+}
+
+function formatLeadForCopy(lead) {
+    return `Lead Information:
+Name: ${lead.full_name}
+Draft Date: ${lead.draft_date}
+Monthly Premium: ${lead.monthly_premium}
+Coverage Amount: ${lead.coverage_amount}
+Carrier: ${lead.carrier}
+Call Center: ${lead.call_center}
+Phone: ${lead.phone}
+Email: ${lead.email}
+Address: ${lead.address}, ${lead.city}, ${lead.state} ${lead.postal_code}
+Age: ${lead.age}
+Height: ${lead.height}
+Weight: ${lead.weight}
+Tobacco User: ${lead.tobacco_user}
+Doctor's Name: ${lead.doctors_name}
+Routing Number: ${lead.routing_number}
+Account Number: ${lead.account_number}
+Beneficiary Information: ${lead.beneficiary_information}
+Health Conditions: ${lead.health_conditions}
+Medications: ${lead.medications}`;
+}
+
+function copyToClipboard(text) {
+    if (!text) text = currentCopyContent;
+    
+    navigator.clipboard.writeText(text).then(() => {
+        // Show temporary success message
+        const btn = event.target.closest('button');
+        if (btn) {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i>';
+            
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+            }, 1500);
+        }
+    }).catch(err => {
+        console.error('Could not copy text: ', err);
+        alert('Failed to copy. Please try manually selecting the text.');
+    });
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script src="/static/js/auth-protect.js"></script>
+{% endblock %}

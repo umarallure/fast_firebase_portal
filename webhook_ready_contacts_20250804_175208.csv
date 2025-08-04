@@ -1,0 +1,60 @@
+full_name,email,phone,center,pipeline_id,to_stage,from_stage,ghl_id,source,address,city,state,postal_code,date_of_birth,birth_state,age,social_security_number,height,weight,doctors_name,tobacco_user,health_conditions,medications,monthly_premium,coverage_amount,carrier,draft_date,beneficiary_information,bank_name,routing_number,account_number,future_draft_date,additional_information,driver_license_number,existing_coverage_last_2_years,previous_applications_last_2_years,date_of_submission,timestamp,contact_id,location_id,fingerprint,timezone,country,date_added,tags,company_name,website,type,assigned_to,dnd,custom_Date of Submission,custom_Birth State,custom_Age,custom_Social Security Number,custom_Height,custom_Weight,custom_Doctors Name,custom_Tobacco User?,custom_Health Conditions,custom_Medications,custom_Monthly Premium,custom_Coverage Amount,custom_Carrier,custom_Draft Date,custom_Beneficiary Information,custom_Routing #,custom_Account #,custom_Future Draft Date,custom_Additional Information,custom_Driver license Number:,custom_Any existing / previous coverage in last 2 years?,custom_Any previous applications in 2 years?,csv_opportunity_name,csv_full_name,csv_phone,csv_pipeline_id,csv_current_stage,csv_contact_id,csv_source,csv_opportunity_status,csv_center,csv_ghl_id,source_id
+Sharon Howman,,+13309880887,Ark Tech,Customer Pipeline,Approved Customer - Not Paid,,pBg2gwuL7tsvPs0qj5Y0-ark,Jotform-call center,"2649 Flickinger Hill RdWooster, OH 44691 , 2649 Flickinger , Hill RdWooster, OH, 44691 ",Hill RdWooster,OH,44691,OH,,NA,272504861,59,84,"Dr. Liza D. Talampas, MD",NO,"stomach
+Scoliosis",10 medications,42.03,,Corbridge  Guaranteed Issue,3rd OF Every Month,"Son:Joseph Howman
+
+Dob:07 16 1977
+",,041215032,02500674918,,,NA,,,,2025-08-04T17:52:02.332126,pBg2gwuL7tsvPs0qj5Y0,4PGZ1Ak32mAxq8gGWptN,,,US,2025-07-18T22:38:04.000Z,"[""call center"", ""childarktech""]",,,lead,uO52LEhmrtCqg9eYdiIZ,False,07-18-2025,OH,68,272504861,59,84,"Dr. Liza D. Talampas, MD",NO,"stomach
+Scoliosis",10 medications,42.03,5000,Corbridge  Guaranteed Issue, 3rd Of August 2025,"Son:Joseph Howman
+
+Dob:07 16 1977
+",041215032,02500674918,3rd OF Every Month,NA,NA,NA,NA,Sharon Howman - 330) 988-0887,Sharon Howman,13309880887.0,Customer Pipeline,Approved Customer - Not Paid,pBg2gwuL7tsvPs0qj5Y0,2,Customer has current policy,Ark Tech,pBg2gwuL7tsvPs0qj5Y0-ark,2
+TONY FOSTER,,+13139350685,Ark Tech,Customer Pipeline,First Draft Payment Failure,,4eadJPg4x3APWeZXFksa-ark,Jotform-call center,"14064 INDIANA ST DETROIT MI 48238, N/A, DETROIT , MI , 48238",DETROIT,MI,48238,MI,,NA,367667566,511,190,N/A,NO,NONE,NONE,57.23,,CICA LIFE ,25TH OF EVERY MONTH ,"BROTHER : JOHN FOSTER 
+07 15 1966",,N/A,N/A,,,N/A,,,,2025-08-04T17:52:04.079902,4eadJPg4x3APWeZXFksa,4PGZ1Ak32mAxq8gGWptN,,,US,2025-07-17T16:35:29.000Z,"[""call center"", ""childarktech""]",,,lead,XgpXx6hOyuj3KjGzjxUO,False,07-17-2025,MI,57,367667566,511,190,N/A,NO,NONE,NONE,57.23,12000,CICA LIFE ,25TH OF JULY 2025 ,"BROTHER : JOHN FOSTER 
+07 15 1966",N/A,N/A,25TH OF EVERY MONTH ,DEBIT CARD : 5307 6760 5931 5792  EXP DATE : DEC 2025  CVV : 835,N/A,NA,NA,TONY FOSTER - (313) 935-0685,TONY FOSTER,13139350685.0,Customer Pipeline,First Draft Payment Failure,4eadJPg4x3APWeZXFksa,2,Customer has already been DQ from our agency,Ark Tech,4eadJPg4x3APWeZXFksa-ark,2
+Jay Kelly,,+17075675820,Ark Tech,Customer Pipeline,Approved Customer - Not Paid,,zd9L5eEQMqIF4rZ1Mv2X-ark,Jotform-call center,"1944 Pennsylvania Ave #14Fairfield, CA 94533, N/A, Fairfield, CA,  94533",Fairfield,CA,94533,CA,,N/A,571118727,58,162,Dr Sarbjot Ghuman,NO,"Medical : amputation due to diabetes in foot
+anxiety
+6 medications
+diabetic
+hb
+hc
+neuropathy
+H : 5""8
+W : 162
+Smoker : Non
+","Medical : amputation due to diabetes in foot
+anxiety
+6 medications
+diabetic
+hb
+hc
+neuropathy
+H : 5""8
+W : 162
+Smoker : Non
+",47.30,,Corebridge Financial,3rd of August,"DAUGHTER (Briauna Hunt)
+10 07 1990
+",,N/A,N/A,,,N/A,,,,2025-08-04T17:52:05.489374,zd9L5eEQMqIF4rZ1Mv2X,4PGZ1Ak32mAxq8gGWptN,,,US,2025-07-15T22:12:59.000Z,"[""call center"", ""childarktech""]",,,lead,Y4DkBuz0jORYFvkMQzlF,False,07-15-2025,CA,55,571118727,58,162,Dr Sarbjot Ghuman,NO,"Medical : amputation due to diabetes in foot
+anxiety
+6 medications
+diabetic
+hb
+hc
+neuropathy
+H : 5""8
+W : 162
+Smoker : Non
+","Medical : amputation due to diabetes in foot
+anxiety
+6 medications
+diabetic
+hb
+hc
+neuropathy
+H : 5""8
+W : 162
+Smoker : Non
+",47.30,7000,Corebridge Financial,3rd of August,"DAUGHTER (Briauna Hunt)
+10 07 1990
+",N/A,N/A,3rd of August,Card Number : 4031 6308 9685 2257 CVV : 045 Expiry Date :  Expiry Date : 12 - 29,N/A,N/A,N/A,Jay Kelly - (707) 567-5820,Jay Kelly,17075675820.0,Customer Pipeline,Approved Customer - Not Paid,zd9L5eEQMqIF4rZ1Mv2X,2,Customer has current policy,Ark Tech,zd9L5eEQMqIF4rZ1Mv2X-ark,2
+BARBARA DEE SANDEFER,,+17142099655,Ark Tech,Customer Pipeline,ACTIVE PLACED - Paid as Advanced,,vQ5bJofQfbghRGAisJ9W-ark,Jotform-call center,"3340 W Orange Ave Apt 26 Anaheim CA 92804, N/A, ANAHEIM , CA , 92804",ANAHEIM,CA,92804,CA,,NA,566371652,51,104,DR SALEM ,NO,"2 HEART ATTACKS , KIDNEY FAILURE , DIABETES , HIGH BP , CHOLESTROL","MEDICATIONS : 2 HEART ATTACKS , KIDNEY FAILURE , DIABETES , HIGH BP , CHOLESTROL",57.75,,RNA ,24TH OF EVERY MONTH ,DAUGHTER ( SHYANNE SADEFER ) ,,322282001,401437774712,,,N/A,,,,2025-08-04T17:52:07.222418,vQ5bJofQfbghRGAisJ9W,4PGZ1Ak32mAxq8gGWptN,,,US,2025-07-11T21:54:01.000Z,"[""call center""]",,,lead,XgpXx6hOyuj3KjGzjxUO,False,07-11-2025,CA,62,566371652,51,104,DR SALEM ,NO,"2 HEART ATTACKS , KIDNEY FAILURE , DIABETES , HIGH BP , CHOLESTROL","MEDICATIONS : 2 HEART ATTACKS , KIDNEY FAILURE , DIABETES , HIGH BP , CHOLESTROL",57.75,5000,RNA ,24TH OF JULY 2025 ,DAUGHTER ( SHYANNE SADEFER ) ,322282001,401437774712,24TH OF EVERY MONTH ,N/A,N/A,NA,NA,BARBARA DEE SANDEFER - (714) 209-9655,BARBARA DEE SANDEFER,17142099655.0,Customer Pipeline,ACTIVE PLACED - Paid as Advanced,vQ5bJofQfbghRGAisJ9W,2,Customer has current policy,Ark Tech,vQ5bJofQfbghRGAisJ9W-ark,2
+Nancy Saidou,,+18608885116,Ark Tech,Customer Pipeline,Approved Customer - Not Paid,,Y5kM8GTKRs5pQX3pB3tp-ark,Jotform-call center,"71 Daddario RdMiddletown, CT 06457, USA, 71 Daddario RdMiddletown, CT 06457, USA, middletown, CT, 06457",middletown,CT,06457,nc,,na,243153821,5,185,na,NO,na,na,38,,corebridge,4th,na,,na   ,na,,,na,,,,2025-08-04T17:52:08.403659,Y5kM8GTKRs5pQX3pB3tp,4PGZ1Ak32mAxq8gGWptN,,,US,2025-07-08T22:41:46.000Z,"[""call center""]",,,lead,uO52LEhmrtCqg9eYdiIZ,False,07-08-2025,nc,66,243153821,5,185,na,NO,na,na,38,7500,corebridge,4th july,na,na   ,na,4th,4258384520829580      03/28   cvv 115    ,na,na,na,Nancy Saidou - (860) 888-5116,Nancy Saidou,18608885116.0,Customer Pipeline,Approved Customer - Not Paid,Y5kM8GTKRs5pQX3pB3tp,2,Customer has current policy,Ark Tech,Y5kM8GTKRs5pQX3pB3tp-ark,2

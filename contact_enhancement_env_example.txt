@@ -1,0 +1,17 @@
+# Environment Variables for Contact Enhancement
+# Copy this file to .env and fill in your actual values
+
+# GoHighLevel API Keys
+GHL_CHILD_LOCATION_API_KEY=your_child_location_api_key_here
+GHL_MASTER_LOCATION_API_KEY=your_master_location_api_key_here
+
+# Alternative: Subaccounts JSON format
+# SUBACCOUNTS=[{"id": "subaccount1", "api_key": "key1"}, {"id": "subaccount2", "api_key": "key2"}]
+
+# GHL Settings
+GHL_V1_API_BASE_URL=https://rest.gohighlevel.com
+GHL_API_TIMEOUT=30
+MAX_CONCURRENT_REQUESTS=10
+
+# Test Limits
+CONTACT_MIGRATION_TEST_LIMIT=5

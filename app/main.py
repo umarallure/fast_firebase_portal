@@ -13,6 +13,7 @@ from app.api.combined_migration import router as combined_migration_router
 from app.api.bulk_opportunity_owner_update import router as bulk_opportunity_owner_router
 from app.api.master_child_opportunity_update import router as master_child_opportunity_router
 from app.api.transfer_portal_comparison import router as transfer_portal_comparison_router
+from app.api.lead_search import router as lead_search_router
 from app.config import settings
 from app.auth.firebase import get_current_user
 import httpx
@@ -33,6 +34,7 @@ import csv as pycsv
 import json
 from app.services.master_copy_notes import master_copy_service
 from app.services.master_child_notes import MasterChildNotesService
+from app.services.lead_search import lead_search_service
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +51,33 @@ def normalize_phone_number(phone: Optional[str]) -> Optional[str]:
     return normalized_phone
 
 app = FastAPI()
+
+@app.on_event("startup")
+async def startup_event():
+    """Load default database on startup"""
+    try:
+        # Try to load the default database file
+        default_db_path = Path("webhook_ready_contacts_FULL_20250804_183041.csv")
+        if default_db_path.exists():
+            # Try different encodings
+            for encoding in ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']:
+                try:
+                    with open(default_db_path, 'r', encoding=encoding) as f:
+                        csv_content = f.read()
+                    success = lead_search_service.load_csv_data(csv_content)
+                    if success:
+                        logger.info(f"Default lead database loaded successfully using {encoding} encoding")
+                        break
+                    else:
+                        logger.warning(f"Failed to parse CSV data with {encoding} encoding")
+                except UnicodeDecodeError:
+                    continue
+            else:
+                logger.warning("Failed to load default database - encoding issues")
+        else:
+            logger.info("No default database file found - users will need to upload one")
+    except Exception as e:
+        logger.error(f"Error loading default database on startup: {str(e)}")
 
 # Configure templates and static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -114,6 +143,12 @@ app.include_router(
     transfer_portal_comparison_router,
     prefix="/api/transfer-portal-comparison",
     tags=["transfer-portal-comparison"]
+)
+
+app.include_router(
+    lead_search_router,
+    prefix="/api/lead-search",
+    tags=["lead-search"]
 )
 
 # Force reload for bulk opportunity owner update - test 2
@@ -205,6 +240,10 @@ async def master_child_opportunity_update_page(request: Request):
 @app.get("/transfer-portal-comparison")
 async def transfer_portal_comparison_page(request: Request):
     return templates.TemplateResponse("transfer_portal_comparison.html", {"request": request})
+
+@app.get("/lead-search")
+async def lead_search_page(request: Request):
+    return templates.TemplateResponse("lead_search.html", {"request": request})
 
 @app.post("/api/bulk-update-notes")
 async def bulk_update_notes_api(csvFile: UploadFile = File(...)):

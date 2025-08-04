@@ -1,0 +1,15 @@
+{
+  "processing_id": "da7fed4e-4146-4d51-86d3-b7b2426caafd",
+  "timestamp": "2025-07-30T04:15:37.418856",
+  "summary": {
+    "total_matches": 1998,
+    "successful_transfers": 1997,
+    "failed_transfers": 1,
+    "total_notes_transferred": 4211,
+    "dry_run": false
+  },
+  "matches_processed": 1998,
+  "final_errors": [
+    "[337/1998] Exception processing contact pair kTXgokCpDnu6ICYQvNSS -> c71aH0NZISw8GzGj1RF1: "
+  ]
+}
