@@ -14,6 +14,7 @@ from app.api.bulk_opportunity_owner_update import router as bulk_opportunity_own
 from app.api.master_child_opportunity_update import router as master_child_opportunity_router
 from app.api.transfer_portal_comparison import router as transfer_portal_comparison_router
 from app.api.lead_search import router as lead_search_router
+from app.api.bulk_update_pipeline_stage import router as bulk_update_pipeline_stage_router
 from app.config import settings
 from app.auth.firebase import get_current_user
 import httpx
@@ -149,6 +150,11 @@ app.include_router(
     lead_search_router,
     prefix="/api/lead-search",
     tags=["lead-search"]
+)
+
+app.include_router(
+    bulk_update_pipeline_stage_router,
+    tags=["bulk-update-pipeline-stage"]
 )
 
 # Force reload for bulk opportunity owner update - test 2
@@ -907,6 +913,12 @@ async def add_subaccount(data: dict = Body(...)):
                 subs = json.loads(array_str)
             except json.JSONDecodeError:
                 subs = []
+            
+            # Check if subaccount with this ID already exists
+            existing_sub = next((s for s in subs if str(s.get("id")) == str(data.get("id"))), None)
+            if existing_sub:
+                raise HTTPException(status_code=400, detail=f"Subaccount with ID {data.get('id')} already exists")
+            
             # Append new subaccount
             subs.append(data)
             # Re-dump and format
@@ -928,6 +940,107 @@ async def add_subaccount(data: dict = Body(...)):
         raise HTTPException(status_code=500, detail=f"Could not write .env file: {e}")
 
     return JSONResponse(content={"success": True, "message": "Subaccount added to .env"})
+
+@app.put("/api/subaccounts/{sub_id}")
+async def update_subaccount(sub_id: str, data: dict = Body(...)):
+    """Update an existing subaccount in the .env SUBACCOUNTS list"""
+    env_path = Path(__file__).parent.parent / ".env"
+    try:
+        text = env_path.read_text(encoding='utf-8')
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not read .env file: {e}")
+
+    lines = text.splitlines()
+    updated = False
+    new_lines = []
+    for line in lines:
+        if line.startswith("SUBACCOUNTS="):
+            # Extract existing JSON array
+            key, val = line.split("=", 1)
+            array_str = val.strip().strip("'").strip('"')
+            try:
+                subs = json.loads(array_str)
+            except json.JSONDecodeError:
+                subs = []
+            
+            # Find and update the subaccount
+            sub_found = False
+            for i, sub in enumerate(subs):
+                if str(sub.get("id")) == str(sub_id):
+                    # Update the subaccount data
+                    subs[i] = data
+                    sub_found = True
+                    break
+            
+            if not sub_found:
+                raise HTTPException(status_code=404, detail=f"Subaccount with ID {sub_id} not found")
+            
+            # Re-dump and format
+            new_array_str = json.dumps(subs)
+            new_line = f"SUBACCOUNTS='{new_array_str}'"
+            new_lines.append(new_line)
+            updated = True
+        else:
+            new_lines.append(line)
+    
+    if not updated:
+        raise HTTPException(status_code=404, detail="SUBACCOUNTS configuration not found")
+    
+    # Write back
+    try:
+        env_path.write_text("\n".join(new_lines), encoding='utf-8')
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not write .env file: {e}")
+
+    return JSONResponse(content={"success": True, "message": f"Subaccount {sub_id} updated successfully"})
+
+@app.delete("/api/subaccounts/{sub_id}")
+async def delete_subaccount(sub_id: str):
+    """Delete a subaccount from the .env SUBACCOUNTS list"""
+    env_path = Path(__file__).parent.parent / ".env"
+    try:
+        text = env_path.read_text(encoding='utf-8')
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not read .env file: {e}")
+
+    lines = text.splitlines()
+    updated = False
+    new_lines = []
+    for line in lines:
+        if line.startswith("SUBACCOUNTS="):
+            # Extract existing JSON array
+            key, val = line.split("=", 1)
+            array_str = val.strip().strip("'").strip('"')
+            try:
+                subs = json.loads(array_str)
+            except json.JSONDecodeError:
+                subs = []
+            
+            # Remove the subaccount
+            original_length = len(subs)
+            subs = [sub for sub in subs if str(sub.get("id")) != str(sub_id)]
+            
+            if len(subs) == original_length:
+                raise HTTPException(status_code=404, detail=f"Subaccount with ID {sub_id} not found")
+            
+            # Re-dump and format
+            new_array_str = json.dumps(subs)
+            new_line = f"SUBACCOUNTS='{new_array_str}'"
+            new_lines.append(new_line)
+            updated = True
+        else:
+            new_lines.append(line)
+    
+    if not updated:
+        raise HTTPException(status_code=404, detail="SUBACCOUNTS configuration not found")
+    
+    # Write back
+    try:
+        env_path.write_text("\n".join(new_lines), encoding='utf-8')
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not write .env file: {e}")
+
+    return JSONResponse(content={"success": True, "message": f"Subaccount {sub_id} deleted successfully"})
 
 @app.get("/migration")
 async def migration_dashboard_page(request: Request):

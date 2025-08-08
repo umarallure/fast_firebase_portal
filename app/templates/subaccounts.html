@@ -46,14 +46,37 @@ document.addEventListener('DOMContentLoaded', function() {
 <div id="subaccounts-content">
   <div class="row">
     <div class="col-md-8 offset-md-2">
-      <h2 class="mb-4">Manage Subaccounts</h2>
+      <h2 class="mb-4">
+        <i class="fas fa-cogs text-primary me-2"></i>
+        Manage Subaccounts
+      </h2>
+      
+      <div class="alert alert-info mb-4">
+        <h6><i class="fas fa-info-circle me-2"></i>Account Configuration Guide</h6>
+        <p class="mb-1">
+          <strong>Account ID:</strong> Your internal identifier (1, 2, 3, 4) used in CSV files<br>
+          <strong>Location ID:</strong> GHL's unique location identifier (required for V2 API)<br>
+          <strong>API Key (V1):</strong> Legacy key for existing automations<br>
+          <strong>Access Token (V2):</strong> Required for new V2 API features like "Bulk Update Pipeline & Stage"
+        </p>
+        <p class="mb-0">
+          <strong>How to get Location ID:</strong> 
+          In GHL, go to Settings → Company → Locations, or check the URL when viewing a location.<br>
+          <strong>How to get V2 Access Token:</strong> 
+          Go to GHL Settings → Integrations → API → Create integration with scopes: 
+          <code>opportunities.write</code>, <code>contacts.write</code>, <code>pipelines.readonly</code>, <code>locations.readonly</code>
+        </p>
+      </div>
 
       <table class="table table-bordered" id="subaccounts-table">
         <thead>
           <tr>
             <th>ID</th>
             <th>Name</th>
+            <th>Location ID</th>
             <th>API Key</th>
+            <th>Access Token (V2)</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -62,18 +85,32 @@ document.addEventListener('DOMContentLoaded', function() {
       <h4 class="mt-5">Add New Subaccount</h4>
       <form id="subaccount-form">
         <div class="mb-3">
-          <label for="sub-id" class="form-label">Subaccount ID</label>
+          <label for="sub-id" class="form-label">Account ID</label>
           <input type="text" class="form-control" id="sub-id" required>
+          <div class="form-text">Internal account identifier (1, 2, 3, 4, etc.)</div>
         </div>
         <div class="mb-3">
           <label for="sub-name" class="form-label">Name</label>
           <input type="text" class="form-control" id="sub-name" required>
+          <div class="form-text">Human-readable account name</div>
         </div>
         <div class="mb-3">
-          <label for="sub-api-key" class="form-label">API Key</label>
+          <label for="sub-location-id" class="form-label">Location ID</label>
+          <input type="text" class="form-control" id="sub-location-id" required>
+          <div class="form-text">GHL Location ID (starts with letters/numbers, e.g., "ve9EPM428h8vShlRW1KT")</div>
+        </div>
+        <div class="mb-3">
+          <label for="sub-api-key" class="form-label">API Key (V1)</label>
           <input type="text" class="form-control" id="sub-api-key" required>
+          <div class="form-text">Legacy V1 API key for backward compatibility</div>
+        </div>
+        <div class="mb-3">
+          <label for="sub-access-token" class="form-label">Access Token (V2)</label>
+          <input type="text" class="form-control" id="sub-access-token">
+          <div class="form-text">V2 API access token for new bulk update features</div>
         </div>
         <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn btn-secondary" id="cancel-edit" style="display: none;">Cancel Edit</button>
       </form>
 
       <div id="form-message" class="mt-3"></div>
@@ -81,6 +118,8 @@ document.addEventListener('DOMContentLoaded', function() {
   </div>
 
   <script>
+  let editingSubId = null;
+
   async function loadSubaccounts() {
     const tableBody = document.querySelector('#subaccounts-table tbody');
     tableBody.innerHTML = '';
@@ -89,7 +128,26 @@ document.addEventListener('DOMContentLoaded', function() {
       const subs = await resp.json();
       subs.forEach(s => {
         const row = document.createElement('tr');
-        row.innerHTML = `<td>${s.id}</td><td>${s.name}</td>`;
+        const hasAccessToken = s.access_token && s.access_token.trim().length > 0;
+        const accessTokenDisplay = hasAccessToken ? 
+          `<span class="badge bg-success">Configured</span>` : 
+          `<span class="badge bg-warning text-dark">Missing</span>`;
+        
+        row.innerHTML = `
+          <td>${s.id}</td>
+          <td>${s.name}</td>
+          <td><code class="small">${s.location_id ? s.location_id.substring(0, 15) + '...' : 'N/A'}</code></td>
+          <td><code class="small">${s.api_key ? s.api_key.substring(0, 20) + '...' : 'N/A'}</code></td>
+          <td>${accessTokenDisplay}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary me-1" onclick="editSubaccount('${s.id}')">
+              <i class="fas fa-edit"></i> Edit
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteSubaccount('${s.id}')">
+              <i class="fas fa-trash"></i> Delete
+            </button>
+          </td>
+        `;
         tableBody.appendChild(row);
       });
     } catch (err) {
@@ -97,28 +155,117 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
+  async function editSubaccount(subId) {
+    try {
+      const resp = await fetch('/api/subaccounts');
+      const subs = await resp.json();
+      const sub = subs.find(s => s.id === subId);
+      
+      if (sub) {
+        // Populate form with existing data
+        document.getElementById('sub-id').value = sub.id;
+        document.getElementById('sub-name').value = sub.name;
+        document.getElementById('sub-location-id').value = sub.location_id || '';
+        document.getElementById('sub-api-key').value = sub.api_key || '';
+        document.getElementById('sub-access-token').value = sub.access_token || '';
+        
+        // Make ID field readonly during edit
+        document.getElementById('sub-id').readOnly = true;
+        
+        // Update form title and buttons
+        document.querySelector('h4.mt-5').textContent = 'Edit Subaccount';
+        document.querySelector('button[type="submit"]').textContent = 'Update';
+        document.getElementById('cancel-edit').style.display = 'inline-block';
+        
+        editingSubId = subId;
+      }
+    } catch (err) {
+      console.error('Could not load subaccount for editing', err);
+    }
+  }
+
+  async function deleteSubaccount(subId) {
+    if (confirm(`Are you sure you want to delete subaccount ${subId}?`)) {
+      try {
+        const resp = await fetch(`/api/subaccounts/${subId}`, {
+          method: 'DELETE'
+        });
+        const result = await resp.json();
+        
+        const msgDiv = document.getElementById('form-message');
+        if (result.success) {
+          msgDiv.innerHTML = '<div class="alert alert-success">' + result.message + '</div>';
+          loadSubaccounts();
+        } else {
+          msgDiv.innerHTML = '<div class="alert alert-danger">' + result.message + '</div>';
+        }
+      } catch (err) {
+        document.getElementById('form-message').innerHTML = 
+          '<div class="alert alert-danger">Error deleting subaccount.</div>';
+      }
+    }
+  }
+
+  function cancelEdit() {
+    // Reset form
+    document.getElementById('subaccount-form').reset();
+    document.getElementById('sub-id').readOnly = false;
+    
+    // Reset form title and buttons
+    document.querySelector('h4.mt-5').textContent = 'Add New Subaccount';
+    document.querySelector('button[type="submit"]').textContent = 'Save';
+    document.getElementById('cancel-edit').style.display = 'none';
+    
+    editingSubId = null;
+    
+    // Clear any messages
+    document.getElementById('form-message').innerHTML = '';
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     loadSubaccounts();
+
+    // Cancel edit button
+    document.getElementById('cancel-edit').addEventListener('click', cancelEdit);
 
     const form = document.getElementById('subaccount-form');
     form.addEventListener('submit', async e => {
       e.preventDefault();
       const id = document.getElementById('sub-id').value.trim();
       const name = document.getElementById('sub-name').value.trim();
+      const location_id = document.getElementById('sub-location-id').value.trim();
       const api_key = document.getElementById('sub-api-key').value.trim();
+      const access_token = document.getElementById('sub-access-token').value.trim();
       const msgDiv = document.getElementById('form-message');
       msgDiv.textContent = '';
 
+      const payload = { id, name, location_id, api_key };
+      if (access_token) {
+        payload.access_token = access_token;
+      }
+
       try {
-        const resp = await fetch('/api/subaccounts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, name, api_key })
-        });
+        let resp;
+        if (editingSubId) {
+          // Update existing subaccount
+          resp = await fetch(`/api/subaccounts/${editingSubId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        } else {
+          // Add new subaccount
+          resp = await fetch('/api/subaccounts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        }
+        
         const result = await resp.json();
         if (result.success) {
           msgDiv.innerHTML = '<div class="alert alert-success">'+ result.message +'</div>';
-          form.reset();
+          cancelEdit(); // Reset form
           loadSubaccounts();
         } else {
           msgDiv.innerHTML = '<div class="alert alert-danger">'+ result.message +'</div>';

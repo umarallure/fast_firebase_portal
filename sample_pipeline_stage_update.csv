@@ -1,0 +1,7 @@
+Opportunity ID,pipeline,stage,Lead Value,Notes,Account Id
+TF6F15FjZe37qasTHE1d,Customer Pipeline,Needs Carrier Application,150.00,Policy status showing Not Taken in the carrier's portal,2
+gez1VxzgYNBQYAf1hwlX,Customer Pipeline,Pending Lapse,250.50,Updated status from V2 API automation,2
+42aAxkvtr9XrTF32x6YS,Transfer Portal,ACTIVE PLACED - Paid as Advanced,500.00,Moved to transfer portal pipeline,2
+wX4fN80FI5qFkie2ZS4j,Customer Pipeline,Needs to be Fixed,0.00,Policy can no longer be found in the carrier's portal. Needs to be fixed,2
+ILu4vXu01AqznxzaWH0l,Customer Pipeline,ACTIVE PLACED - Paid as Advanced,125.75,Updated via bulk pipeline stage automation,3
+vRV28GJT1dOmTmMwWpKR,Customer Pipeline,First Draft Payment Failure,300.00,Payment processing issue resolved,3
