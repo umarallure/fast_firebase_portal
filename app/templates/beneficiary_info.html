@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Get Beneficiary Information</h2>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label for="csvFile" class="form-label">Upload Contact CSV</label>
+            <input class="form-control" type="file" id="csvFile" name="file" accept=".csv" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Get Beneficiary Info</button>
+    </form>
+    <div id="result" class="mt-4"></div>
+</div>
+<script>
+document.getElementById('uploadForm').onsubmit = async function(e) {
+    e.preventDefault();
+    const formData = new FormData();
+    const fileInput = document.getElementById('csvFile');
+    if (!fileInput.files.length) return;
+    formData.append('file', fileInput.files[0]);
+    document.getElementById('result').innerHTML = 'Processing...';
+    const res = await fetch('/get-beneficiary-info', {
+        method: 'POST',
+        body: formData
+    });
+    if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        document.getElementById('result').innerHTML = `<a href="${url}" download="beneficiary_info.csv" class="btn btn-success">Download Result CSV</a>`;
+    } else {
+        const text = await res.text();
+        document.getElementById('result').innerHTML = `<div class="alert alert-danger">${text}</div>`;
+    }
+}
+</script>
+{% endblock %}

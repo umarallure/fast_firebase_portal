@@ -235,7 +235,8 @@ async def process_account_opportunities_v2(
     update_results = []
     notes_results = []
     errors = []
-    
+    processed_notes = set()  # Track (contact_id, notes) pairs
+
     for _, row in account_df.iterrows():
         try:
             opportunity_id = str(row['Opportunity ID']).strip()
@@ -245,24 +246,24 @@ async def process_account_opportunities_v2(
             lead_value = float(row['Lead Value']) if pd.notna(row['Lead Value']) else 0
             notes = str(row['Notes']).strip() if pd.notna(row['Notes']) else ""
             contact_id = str(row['Contact ID']).strip() if pd.notna(row['Contact ID']) else ""
-            
+
             logger.info(f"Processing opportunity: {opportunity_id} - {opportunity_name}")
             logger.info(f"Moving to pipeline: {pipeline_name}, stage: {stage_name}")
-            
+
             # Get pipeline ID from name
             pipeline_id = await updater.get_pipeline_id_by_name(pipeline_name)
             if not pipeline_id:
                 errors.append(f"Pipeline '{pipeline_name}' not found for opportunity {opportunity_id}")
                 failed_count += 1
                 continue
-            
+
             # Get stage ID from name
             stage_id = await updater.get_stage_id_by_name(pipeline_id, stage_name)
             if not stage_id:
                 errors.append(f"Stage '{stage_name}' not found in pipeline '{pipeline_name}' for opportunity {opportunity_id}")
                 failed_count += 1
                 continue
-            
+
             # Prepare update payload with required name field
             update_payload = {
                 "name": opportunity_name,
@@ -271,12 +272,12 @@ async def process_account_opportunities_v2(
                 "status": "open",
                 "monetaryValue": lead_value
             }
-            
+
             logger.info(f"Update payload: {update_payload}")
-            
+
             # Update opportunity
             result = await updater.update_opportunity_v2(opportunity_id, update_payload)
-            
+
             if result["status"] == "success":
                 success_count += 1
                 update_results.append({
@@ -286,18 +287,23 @@ async def process_account_opportunities_v2(
                     "lead_value": lead_value,
                     "status": "success"
                 })
-                
-                # Add notes if provided and Contact ID is available
+
+                # Add notes if provided and Contact ID is available, but only once per contact/note
                 if notes and notes.upper() not in ['NAN', 'N/A', 'NULL', ''] and contact_id:
-                    logger.info(f"Adding notes for opportunity {opportunity_id}, contact {contact_id}: '{notes}'")
-                    notes_result = await updater.update_contact_notes(contact_id, notes)
-                    notes_results.append({
-                        "opportunity_id": opportunity_id,
-                        "contact_id": contact_id,
-                        "notes": notes,
-                        "status": notes_result["status"],
-                        "message": notes_result.get("error", "Notes added successfully")
-                    })
+                    note_key = (contact_id, notes)
+                    if note_key not in processed_notes:
+                        logger.info(f"Adding notes for opportunity {opportunity_id}, contact {contact_id}: '{notes}'")
+                        notes_result = await updater.update_contact_notes(contact_id, notes)
+                        notes_results.append({
+                            "opportunity_id": opportunity_id,
+                            "contact_id": contact_id,
+                            "notes": notes,
+                            "status": notes_result["status"],
+                            "message": notes_result.get("error", "Notes added successfully")
+                        })
+                        processed_notes.add(note_key)
+                    else:
+                        logger.info(f"Skipping duplicate note for contact {contact_id}: '{notes}'")
                 elif notes and not contact_id:
                     logger.warning(f"Notes provided for opportunity {opportunity_id} but no Contact ID available")
                     notes_results.append({
@@ -307,16 +313,16 @@ async def process_account_opportunities_v2(
                         "status": "skipped",
                         "message": "No Contact ID provided"
                     })
-                    
+
             else:
                 failed_count += 1
                 errors.append(f"Failed to update opportunity {opportunity_id}: {result.get('error', 'Unknown error')}")
-                
+
         except Exception as e:
             logger.error(f"Error processing opportunity {row.get('Opportunity ID', 'Unknown')}: {str(e)}")
             errors.append(f"Error processing opportunity {row.get('Opportunity ID', 'Unknown')}: {str(e)}")
             failed_count += 1
-    
+
     return {
         "status": "completed",
         "account_name": account_name,

@@ -1,0 +1,12 @@
+{
+  "processing_id": "e9190a04-2d8a-4110-97cc-c2f1d25532e1",
+  "timestamp": "2025-08-16T01:40:18.819028",
+  "summary": {
+    "total_matches": 2672,
+    "successful_updates": 2672,
+    "failed_updates": 0,
+    "dry_run": false
+  },
+  "matches_processed": 2672,
+  "final_errors": []
+}

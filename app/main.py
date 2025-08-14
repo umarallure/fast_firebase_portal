@@ -51,7 +51,10 @@ def normalize_phone_number(phone: Optional[str]) -> Optional[str]:
         normalized_phone = '+' + normalized_phone
     return normalized_phone
 
+from app.routes.beneficiary_info import router as beneficiary_info_router
+from app.routes.export_ghl_opportunities import router as export_router
 app = FastAPI()
+app.include_router(export_router)
 
 @app.on_event("startup")
 async def startup_event():
@@ -157,6 +160,15 @@ app.include_router(
     tags=["bulk-update-pipeline-stage"]
 )
 
+# Add beneficiary info API router
+app.include_router(
+    beneficiary_info_router,
+    tags=["beneficiary-info"]
+)
+@app.get("/beneficiary-info")
+async def beneficiary_info_page(request: Request):
+    return templates.TemplateResponse("beneficiary_info.html", {"request": request})
+
 # Force reload for bulk opportunity owner update - test 2
 
 FAILED_CSV_DIR = os.path.join(os.path.dirname(__file__), "static", "failed_csvs")
@@ -250,6 +262,22 @@ async def transfer_portal_comparison_page(request: Request):
 @app.get("/lead-search")
 async def lead_search_page(request: Request):
     return templates.TemplateResponse("lead_search.html", {"request": request})
+
+# GHL Pipeline & Notes Export page
+@app.get("/ghl-export")
+
+async def ghl_export_page(request: Request):
+    return templates.TemplateResponse("ghl_export.html", {"request": request})
+
+# API endpoint to return subaccounts as JSON
+from fastapi.responses import JSONResponse
+import os, json
+
+@app.get("/api/subaccounts")
+async def api_subaccounts():
+    subaccounts = json.loads(os.getenv('SUBACCOUNTS', '[]'))
+    # Return only id and name for dropdown
+    return JSONResponse([{'id': sub['id'], 'name': sub['name']} for sub in subaccounts])
 
 @app.post("/api/bulk-update-notes")
 async def bulk_update_notes_api(csvFile: UploadFile = File(...)):

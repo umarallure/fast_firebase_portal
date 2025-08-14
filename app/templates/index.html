@@ -21,6 +21,17 @@ firebase.auth().onAuthStateChanged(function(user) {
             </div>
         </div>
         <div class="col-md-4 mb-4">
+            <div class="card automation-card h-100" style="cursor:pointer; border-left: 4px solid #007bff;" onclick="window.location.href='/ghl-export'">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-file-export text-primary me-2"></i>
+                        GHL Pipeline & Notes Export <span class="badge bg-primary">New</span>
+                    </h5>
+                    <p class="card-text">Export opportunities and latest notes from selected GHL sub-accounts to CSV.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
             <div class="card automation-card h-100" style="cursor:pointer;" onclick="window.location.href='/bulk-update-notes'">
                 <div class="card-body">
                     <h5 class="card-title">2) Bulk Update Notes</h5>
