@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Bulk Update Opportunity Pipeline & Stage</h2>
+    <div class="card mb-4">
+        <div class="card-body">
+            <form id="bulk-update-form" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label class="form-label">Upload CSV/Excel File</label>
+                    <input type="file" class="form-control" id="update-file" name="file" accept=".csv,.xlsx,.xls" required>
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="dry-run" name="dry_run" checked>
+                    <label class="form-check-label" for="dry-run">Dry Run (validate only, no API calls)</label>
+                </div>
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </form>
+            <div id="update-status" class="mt-3"></div>
+            <div id="update-log-link" class="mt-3"></div>
+        </div>
+    </div>
+</div>
+<script>
+document.getElementById('bulk-update-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const fileInput = document.getElementById('update-file');
+    const dryRun = document.getElementById('dry-run').checked;
+    const statusDiv = document.getElementById('update-status');
+    const logDiv = document.getElementById('update-log-link');
+    statusDiv.textContent = '';
+    logDiv.textContent = '';
+    if (!fileInput.files.length) {
+        statusDiv.textContent = 'Please select a file.';
+        return;
+    }
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('dry_run', dryRun);
+    statusDiv.textContent = 'Processing, please wait...';
+    fetch('/bulk-update-opportunity-stage', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        statusDiv.textContent = `Processed: ${data.totalRows}, Updated: ${data.updated}, Skipped: ${data.skipped}`;
+        if (data.logFile) {
+            logDiv.innerHTML = `<a href="/bulk-update-opportunity-stage/log" class="btn btn-warning">Download Failure Log</a>`;
+        }
+    })
+    .catch(err => {
+        statusDiv.textContent = 'Error: ' + err.message;
+    });
+});
+</script>
+{% endblock %}

@@ -1378,3 +1378,11 @@ async def download_master_child_matches(request_data: dict):
             "success": False,
             "error": str(e)
         }, status_code=500)
+
+from app.routes.bulk_update_opportunity_stage import router as bulk_update_opportunity_stage_router
+
+app.include_router(bulk_update_opportunity_stage_router, tags=["bulk-update-opportunity-stage"])
+
+@app.get("/bulk-update-opportunity-stage")
+async def bulk_update_opportunity_stage_page(request: Request):
+    return templates.TemplateResponse("bulk_update_opportunity_stage.html", {"request": request})
