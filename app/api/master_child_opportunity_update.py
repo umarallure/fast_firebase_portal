@@ -2,6 +2,8 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import Response
 from typing import Optional
 import logging
+import os
+from datetime import datetime
 from app.services.master_child_opportunity_update import master_child_opportunity_service
 
 logger = logging.getLogger(__name__)
@@ -146,19 +148,102 @@ async def download_sample_master_csv():
         logger.error(f"Error generating sample master CSV: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Sample generation failed: {str(e)}")
 
-@router.get("/sample-child-csv")
-async def download_sample_child_csv():
-    """Download sample child CSV template"""
-    
+@router.get("/unmatched-csv/{matching_id}")
+async def download_unmatched_csv(matching_id: str):
+    """Download CSV of unmatched child opportunities"""
+
     try:
-        _, child_csv = master_child_opportunity_service.generate_sample_csvs()
-        
+        # Get matching progress to check if completed
+        progress = master_child_opportunity_service.get_matching_progress(matching_id)
+
+        if not progress['success']:
+            raise HTTPException(status_code=404, detail="Matching ID not found")
+
+        if progress['progress']['status'] != 'completed':
+            raise HTTPException(status_code=400, detail="Matching process not completed yet")
+
+        # Get the matches data and filter for unmatched records
+        matches = progress['progress'].get('matches', [])
+        unmatched_matches = [match for match in matches if match.get('match_type') == 'no_match']
+
+        if not unmatched_matches:
+            raise HTTPException(status_code=404, detail="No unmatched opportunities found")
+
+        # Generate CSV content
+        import io
+        import pandas as pd
+
+        csv_data = []
+        for match in unmatched_matches:
+            child_opp = match.get('child_opportunity', {})
+            csv_data.append({
+                'contact_name': child_opp.get('contact_name', ''),
+                'phone': child_opp.get('phone', ''),
+                'email': child_opp.get('email', ''),
+                'opportunity_name': child_opp.get('opportunity_name', ''),
+                'pipeline': child_opp.get('pipeline', ''),
+                'stage': child_opp.get('stage', ''),
+                'status': child_opp.get('status', ''),
+                'value': child_opp.get('value', ''),
+                'account_id': child_opp.get('account_id', ''),
+                'opportunity_id': child_opp.get('opportunity_id', ''),
+                'match_score': match.get('match_score', 0.0),
+                'match_type': match.get('match_type', ''),
+                'confidence': match.get('confidence', ''),
+                'skip_reason': match.get('skip_reason', ''),
+                'matching_id': matching_id
+            })
+
+        df = pd.DataFrame(csv_data)
+        csv_output = io.StringIO()
+        df.to_csv(csv_output, index=False)
+
         return Response(
-            content=child_csv,
+            content=csv_output.getvalue(),
             media_type='text/csv',
-            headers={'Content-Disposition': 'attachment; filename="sample_child_opportunities.csv"'}
+            headers={'Content-Disposition': f'attachment; filename="unmatched_opportunities_{matching_id}.csv"'}
         )
-    
+
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error generating sample child CSV: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Sample generation failed: {str(e)}")
+        logger.error(f"Error downloading unmatched CSV: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
+
+@router.get("/export-unmatched-failed/{processing_id}")
+async def export_unmatched_and_failed_csv(processing_id: str):
+    """Export unmatched records and failed updates to CSV"""
+
+    try:
+        # Export the data
+        result = await master_child_opportunity_service.export_unmatched_and_failed_to_csv(processing_id)
+
+        if result.startswith("Error:") or result.startswith("No unmatched records"):
+            raise HTTPException(status_code=404, detail=result)
+
+        # Extract filename from result message
+        if "to " in result:
+            filename_part = result.split("to ")[-1]
+        else:
+            filename_part = f"unmatched_and_failed_updates_{processing_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+
+        # Use the service's results directory
+        filepath = os.path.join(master_child_opportunity_service.results_dir, filename_part)
+
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                csv_content = f.read()
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="CSV file not found")
+
+        return Response(
+            content=csv_content,
+            media_type='text/csv',
+            headers={'Content-Disposition': f'attachment; filename="{filename_part}"'}
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error exporting unmatched and failed CSV: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")

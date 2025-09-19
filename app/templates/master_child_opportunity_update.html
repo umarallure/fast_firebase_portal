@@ -300,8 +300,17 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
 
                             <div class="text-center">
+                                <div id="sync-status-indicator" class="mb-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle"></i> 
+                                        Complete matching process first to enable sync button
+                                    </small>
+                                </div>
                                 <button class="btn btn-lg btn-success" id="start-update-btn" disabled>
                                     <i class="fas fa-sync-alt"></i> Start Complete Data Sync Process
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary ms-2" id="enable-sync-btn" onclick="enableSyncButton()">
+                                    <i class="fas fa-unlock"></i> Enable Sync Button
                                 </button>
                             </div>
                         </div>
@@ -475,8 +484,15 @@ async function updateMatchingProgress() {
             if (progress.status === 'completed') {
                 clearInterval(progressInterval);
                 currentMatches = progress.matches;
+                localStorage.setItem('lastMatchingId', matchingId); // Save for restoration
                 showMatchingResults(progress);
                 document.getElementById('start-update-btn').disabled = false;
+                document.getElementById('sync-status-indicator').innerHTML = `
+                    <small class="text-success">
+                        <i class="fas fa-check-circle"></i> 
+                        Ready to sync ${progress.matches.length} matches
+                    </small>
+                `;
             }
         }
         
@@ -779,6 +795,7 @@ function displayUpdateProgress(progress) {
 
 function showCompletionResults(progress) {
     const summaryDiv = document.getElementById('results-summary');
+    const downloadSection = document.getElementById('download-section');
     
     const successRate = progress.total > 0 ? (progress.success_count / progress.total * 100) : 0;
     
@@ -834,6 +851,43 @@ function showCompletionResults(progress) {
             </div>
         </div>
     `;
+
+    // Add download buttons for unmatched and failed entries
+    if (processingId) {
+        downloadSection.innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-download"></i> Download Reports</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button id="download-unmatched-failed-btn" class="btn btn-primary btn-lg w-100" onclick="downloadUnmatchedAndFailed()">
+                                <i class="fas fa-file-csv"></i> Download Unmatched & Failed Entries
+                                <br><small class="text-muted">CSV with all unmatched records and failed updates</small>
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button id="download-unmatched-btn" class="btn btn-outline-secondary btn-lg w-100" onclick="downloadUnmatchedOnly()">
+                                <i class="fas fa-file-csv"></i> Download Unmatched Only
+                                <br><small class="text-muted">CSV with only unmatched child opportunities</small>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Download Options:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li><strong>Unmatched & Failed:</strong> Complete report with all unmatched records and error details</li>
+                                <li><strong>Unmatched Only:</strong> Just the child opportunities that couldn't be matched</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
 }
 
 // Utility functions
@@ -844,6 +898,154 @@ function showSpinner(message) {
 
 function hideSpinner() {
     // Hide loading spinner
+}
+
+function enableSyncButton() {
+    const syncBtn = document.getElementById('start-update-btn');
+    const enableBtn = document.getElementById('enable-sync-btn');
+    const statusIndicator = document.getElementById('sync-status-indicator');
+    
+    if (currentMatches && currentMatches.length > 0) {
+        syncBtn.disabled = false;
+        enableBtn.style.display = 'none';
+        statusIndicator.innerHTML = `
+            <small class="text-success">
+                <i class="fas fa-check-circle"></i> 
+                Ready to sync ${currentMatches.length} matches
+            </small>
+        `;
+        alert(`✅ Sync button enabled! Ready to process ${currentMatches.length} matches.`);
+    } else {
+        // Try to restore matches from the last matching operation
+        const matchingId = localStorage.getItem('lastMatchingId');
+        if (matchingId) {
+            restoreMatchesFromLastOperation(matchingId);
+        } else {
+            alert('❌ No matches available. Please complete the matching process first.');
+        }
+    }
+}
+
+async function restoreMatchesFromLastOperation(matchingId) {
+    try {
+        const response = await fetch(`/api/master-child-opportunity-update/match-progress/${matchingId}`);
+        const result = await response.json();
+        
+        if (result.success && result.progress.status === 'completed') {
+            currentMatches = result.progress.matches;
+            document.getElementById('start-update-btn').disabled = false;
+            document.getElementById('enable-sync-btn').style.display = 'none';
+            document.getElementById('sync-status-indicator').innerHTML = `
+                <small class="text-success">
+                    <i class="fas fa-check-circle"></i> 
+                    Ready to sync ${currentMatches.length} matches (restored)
+                </small>
+            `;
+            alert(`✅ Sync button enabled! Restored ${currentMatches.length} matches from previous operation.`);
+        } else {
+            alert('❌ Could not restore matches from previous operation. Please run matching again.');
+        }
+    } catch (error) {
+        console.error('Error restoring matches:', error);
+        alert('❌ Error restoring matches. Please run matching again.');
+    }
+}
+
+// Download functions
+async function downloadUnmatchedAndFailed() {
+    if (!processingId) {
+        alert('❌ No processing ID available. Please complete the sync process first.');
+        return;
+    }
+
+    try {
+        const btn = document.getElementById('download-unmatched-failed-btn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating CSV...';
+        btn.disabled = true;
+
+        const response = await fetch(`/api/master-child-opportunity-update/export-unmatched-failed/${processingId}`);
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `unmatched_and_failed_${processingId}_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            alert('✅ CSV downloaded successfully!');
+        } else {
+            const errorText = await response.text();
+            console.error('Download failed:', response.status, errorText);
+
+            if (response.status === 404) {
+                alert(`❌ No data found: ${errorText}\n\nThis might mean:\n• No unmatched records exist\n• No failed updates occurred\n• The processing ID is invalid\n\nTry completing the sync process again.`);
+            } else {
+                alert(`❌ Download failed: ${errorText}`);
+            }
+        }
+    } catch (error) {
+        console.error('Download error:', error);
+        alert('❌ Download failed. Please check your connection and try again.');
+    } finally {
+        const btn = document.getElementById('download-unmatched-failed-btn');
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+}
+
+async function downloadUnmatchedOnly() {
+    if (!matchingId) {
+        alert('❌ No matching ID available. Please complete the matching process first.');
+        return;
+    }
+
+    try {
+        const btn = document.getElementById('download-unmatched-btn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating CSV...';
+        btn.disabled = true;
+
+        const response = await fetch(`/api/master-child-opportunity-update/unmatched-csv/${matchingId}`);
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `unmatched_opportunities_${matchingId}_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            alert('✅ Unmatched opportunities CSV downloaded successfully!');
+        } else {
+            const errorText = await response.text();
+            console.error('Download failed:', response.status, errorText);
+
+            if (response.status === 404) {
+                alert(`❌ No unmatched opportunities found: ${errorText}\n\nThis might mean:\n• All opportunities were successfully matched\n• The matching process didn't complete\n• The matching ID is invalid\n\nTry running the matching process again.`);
+            } else {
+                alert(`❌ Download failed: ${errorText}`);
+            }
+        }
+    } catch (error) {
+        console.error('Download error:', error);
+        alert('❌ Download failed. Please check your connection and try again.');
+    } finally {
+        const btn = document.getElementById('download-unmatched-btn');
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
 }
 </script>
 {% endblock %}

@@ -13,7 +13,12 @@
                 </div>
                 <button type="button" class="btn btn-primary" id="generate-report-btn">Generate Report</button>
             </form>
-            <div id="export-status" class="mt-3"></div>
+            <div id="export-status" class="mt-3">
+                <div class="progress" id="progress-bar" style="display:none;">
+                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+                <div id="status-text"></div>
+            </div>
             <div id="csv-download-link" class="mt-3"></div>
         </div>
     </div>
@@ -46,31 +51,126 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle Generate Report button click
     document.getElementById('generate-report-btn').addEventListener('click', function() {
         const selected = Array.from(document.querySelectorAll('#subaccount-checkboxes input:checked')).map(cb => cb.value);
-        const statusDiv = document.getElementById('export-status');
+        const statusText = document.getElementById('status-text');
         const linkDiv = document.getElementById('csv-download-link');
-        statusDiv.textContent = '';
+        const progressBar = document.getElementById('progress-bar');
+        const progressBarInner = progressBar.querySelector('.progress-bar');
+        const btn = document.getElementById('generate-report-btn');
+        
+        statusText.textContent = '';
         linkDiv.textContent = '';
+        
         if (selected.length === 0) {
-            statusDiv.textContent = 'Please select at least one sub-account.';
+            statusText.textContent = 'Please select at least one sub-account.';
             return;
         }
-        statusDiv.textContent = 'Generating report, please wait...';
+        
+        // Disable button and start export
+        btn.disabled = true;
+        btn.textContent = 'Starting Export...';
+        progressBar.style.display = 'block';
+        progressBarInner.style.width = '0%';
+        statusText.textContent = 'Initializing export...';
+        
         // Build query string for selected subaccounts
         const params = selected.map(id => 'subaccount_ids=' + encodeURIComponent(id)).join('&');
+        
+        // Start the export
         fetch('/export-ghl-opportunities?' + params)
-            .then(response => {
-                if (!response.ok) throw new Error('Export failed');
-                return response.blob();
-            })
-            .then(blob => {
-                statusDiv.textContent = 'Report ready!';
-                const url = window.URL.createObjectURL(blob);
-                linkDiv.innerHTML = `<a href="${url}" download="ghl_opportunities_export.csv" class="btn btn-success">Download CSV</a>`;
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                const taskId = data.task_id;
+                statusText.textContent = 'Export started, monitoring progress...';
+                btn.textContent = 'Exporting...';
+                
+                // Start polling for progress
+                pollProgress(taskId, progressBarInner, statusText, linkDiv, btn);
             })
             .catch(err => {
-                statusDiv.textContent = 'Error: ' + err.message;
+                statusText.textContent = 'Error: ' + err.message;
+                progressBar.style.display = 'none';
+                btn.disabled = false;
+                btn.textContent = 'Generate Report';
             });
     });
+    
+    function pollProgress(taskId, progressBarInner, statusText, linkDiv, btn) {
+        const pollInterval = setInterval(() => {
+            fetch(`/export-progress/${taskId}`)
+                .then(response => response.json())
+                .then(progress => {
+                    if (progress.error) {
+                        clearInterval(pollInterval);
+                        statusText.textContent = 'Error: ' + progress.error;
+                        progressBarInner.parentElement.style.display = 'none';
+                        btn.disabled = false;
+                        btn.textContent = 'Generate Report';
+                        return;
+                    }
+                    
+                    // Update progress bar
+                    let progressPercent = progress.progress;
+                    if (progress.total_opportunities > 0) {
+                        progressPercent = Math.min(99, Math.round((progress.processed_opportunities / progress.total_opportunities) * 100));
+                    }
+                    progressBarInner.style.width = progressPercent + '%';
+                    
+                    // Update status text with detailed information
+                    let statusMessage = progress.message;
+                    if (progress.current_stage) {
+                        statusMessage = progress.current_stage;
+                    }
+                    if (progress.total_opportunities > 0) {
+                        const percentage = progress.total_opportunities > 0 ? 
+                            Math.round((progress.processed_opportunities / progress.total_opportunities) * 100) : 0;
+                        statusMessage += ` (${progress.processed_opportunities}/${progress.total_opportunities} opportunities - ${percentage}%)`;
+                    }
+                    if (progress.total_notes > 0 && progress.notes_progress !== undefined) {
+                        const notesPercentage = Math.round((progress.notes_progress / progress.total_notes) * 100);
+                        statusMessage += ` | Notes: ${progress.notes_progress}/${progress.total_notes} (${notesPercentage}%)`;
+                    }
+                    if (progress.current_subaccount) {
+                        statusMessage += ` - ${progress.current_subaccount}`;
+                    }
+                    if (progress.estimated_time_remaining && progress.estimated_time_remaining > 0) {
+                        const minutes = Math.floor(progress.estimated_time_remaining / 60);
+                        const seconds = Math.floor(progress.estimated_time_remaining % 60);
+                        statusMessage += ` - Est. ${minutes}m ${seconds}s remaining`;
+                    }
+                    
+                    // Add rate limiting indicator
+                    if (statusMessage.includes('Rate limited') || statusMessage.includes('Circuit breaker')) {
+                        statusText.style.color = '#ff6b6b'; // Red color for rate limiting
+                    } else {
+                        statusText.style.color = '#333'; // Normal color
+                    }
+                    
+                    statusText.textContent = statusMessage;
+                    
+                    // Check if completed
+                    if (progress.status === 'completed') {
+                        clearInterval(pollInterval);
+                        statusText.textContent = progress.message;
+                        progressBarInner.parentElement.style.display = 'none';
+                        btn.disabled = false;
+                        btn.textContent = 'Generate Report';
+                        
+                        // Show download link
+                        linkDiv.innerHTML = `<a href="/download-export/${taskId}" class="btn btn-success">Download CSV</a>`;
+                    }
+                })
+                .catch(err => {
+                    clearInterval(pollInterval);
+                    statusText.textContent = 'Error checking progress: ' + err.message;
+                    progressBarInner.parentElement.style.display = 'none';
+                    btn.disabled = false;
+                    btn.textContent = 'Generate Report';
+                });
+        }, 1000); // Poll every second
+    }
 });
 </script>
 {% endblock %}

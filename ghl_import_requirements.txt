@@ -1,0 +1,2 @@
+# GHL CSV Import Requirements
+requests>=2.28.0

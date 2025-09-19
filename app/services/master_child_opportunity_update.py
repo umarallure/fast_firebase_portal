@@ -124,11 +124,27 @@ class MasterChildOpportunityUpdateService:
                 logger.info(f"Found exact match for stage '{stage_name}' in pipeline: {stage_id}")
                 return stage_id
         
-        # Fallback to global stage mapping
+        # Fallback to global stage mapping, but ONLY if the stage actually exists in this pipeline
         if stage_name_normalized in pipeline_mapping.get('stages', {}):
-            stage_id = pipeline_mapping['stages'][stage_name_normalized]
-            logger.info(f"Found stage '{stage_name}' in global mapping: {stage_id}")
-            return stage_id
+            global_stage_id = pipeline_mapping['stages'][stage_name_normalized]
+            
+            # Verify this stage ID actually exists in the target pipeline
+            if pipeline_id in pipeline_mapping.get('pipeline_stages', {}):
+                pipeline_stages = pipeline_mapping['pipeline_stages'][pipeline_id]
+                # Check if any stage in this pipeline has the same ID as the global one
+                for existing_stage_name, existing_stage_id in pipeline_stages.items():
+                    if existing_stage_id == global_stage_id:
+                        logger.info(f"Found stage '{stage_name}' in global mapping and verified it exists in pipeline: {global_stage_id}")
+                        return global_stage_id
+                
+                # If we get here, the global stage ID doesn't exist in this pipeline
+                logger.warning(f"Stage '{stage_name}' found in global mapping (ID: {global_stage_id}) but not available in pipeline {pipeline_id}")
+                logger.warning(f"Available stages in pipeline: {list(pipeline_stages.keys())}")
+                return None
+            else:
+                # If we don't have pipeline-specific data, fall back to global (less safe but better than nothing)
+                logger.warning(f"Using global stage mapping for '{stage_name}' (ID: {global_stage_id}) - pipeline-specific data not available")
+                return global_stage_id
         
         # Try fuzzy matching for stage names within the specific pipeline first
         if pipeline_id in pipeline_mapping.get('pipeline_stages', {}):
@@ -139,7 +155,7 @@ class MasterChildOpportunityUpdateService:
                     logger.info(f"Fuzzy matched stage '{stage_name}' to '{existing_stage_name}' (ID: {stage_id}, similarity: {similarity}%)")
                     return stage_id
         
-        # Try fuzzy matching for stage names globally
+        # Try fuzzy matching for stage names globally, but verify they exist in the target pipeline
         all_stages = pipeline_mapping.get('stages', {})
         best_match = None
         best_similarity = 0
@@ -147,12 +163,22 @@ class MasterChildOpportunityUpdateService:
         for existing_stage_name, stage_id in all_stages.items():
             similarity = fuzz.ratio(stage_name_normalized, existing_stage_name)
             if similarity > best_similarity and similarity > 85:
-                best_match = (existing_stage_name, stage_id, similarity)
-                best_similarity = similarity
+                # Verify this stage ID exists in the target pipeline
+                if pipeline_id in pipeline_mapping.get('pipeline_stages', {}):
+                    pipeline_stages = pipeline_mapping['pipeline_stages'][pipeline_id]
+                    for pipe_stage_name, pipe_stage_id in pipeline_stages.items():
+                        if pipe_stage_id == stage_id:
+                            best_match = (existing_stage_name, stage_id, similarity)
+                            best_similarity = similarity
+                            break
+                else:
+                    # If no pipeline-specific data, accept the fuzzy match
+                    best_match = (existing_stage_name, stage_id, similarity)
+                    best_similarity = similarity
         
         if best_match:
             existing_stage_name, stage_id, similarity = best_match
-            logger.info(f"Fuzzy matched stage '{stage_name}' to '{existing_stage_name}' (ID: {stage_id}, similarity: {similarity}%)")
+            logger.info(f"Fuzzy matched stage '{stage_name}' to '{existing_stage_name}' (ID: {stage_id}, similarity: {similarity}%) - verified for pipeline")
             return stage_id
         
         # Log all available stages for debugging
@@ -252,6 +278,7 @@ class MasterChildOpportunityUpdateService:
                     'pipeline_stage_id': str(row.get('Pipeline Stage ID', '')).strip(),
                     'lead_value': str(row.get('Lead Value', '')).strip(),
                     'source': str(row.get('source', '')).strip(),
+                    'Created on': str(row.get('Created on', '')).strip(),
                     'row_number': idx + 1,
                     'has_assignment': bool(assigned_to),
                     'source_type': 'master'
@@ -272,9 +299,9 @@ class MasterChildOpportunityUpdateService:
                 stage = str(row.get('stage', '')).strip()
                 assigned_to = str(row.get('assigned', '')).strip()  # Source assignment
                 
-                # Skip rows with missing critical data
-                if not all([opportunity_id, pipeline_id, account_id, contact_name, assigned_to]):
-                    logger.warning(f"Skipping child row {idx + 1}: Missing critical data or assignment")
+                # Skip rows with missing critical data (assigned is optional for child records)
+                if not all([opportunity_id, pipeline_id, account_id, contact_name]):
+                    logger.warning(f"Skipping child row {idx + 1}: Missing critical data")
                     continue
                 
                 child_opportunities.append({
@@ -291,6 +318,7 @@ class MasterChildOpportunityUpdateService:
                     'pipeline_stage_id': str(row.get('Pipeline Stage ID', '')).strip(),
                     'lead_value': str(row.get('Lead Value', '')).strip(),
                     'source': str(row.get('source', '')).strip(),
+                    'Created on': str(row.get('Created on', '')).strip(),
                     'row_number': idx + 1,
                     'source_type': 'child'
                 })
@@ -419,17 +447,30 @@ class MasterChildOpportunityUpdateService:
         
         try:
             logger.info(f"Starting opportunity matching: {len(master_opportunities)} master vs {len(child_opportunities)} child opportunities")
-            
-            # Start background matching
-            asyncio.create_task(self._process_matching(
-                matching_id, master_opportunities, child_opportunities, 
+
+            # Perform matching synchronously for now (can be made async later if needed)
+            await self._perform_matching(
+                matching_id, master_opportunities, child_opportunities,
                 match_threshold, high_confidence_threshold
-            ))
+            )
+
+            # Get the results from the tracker
+            tracker = self.matching_tracker[matching_id]
             
             return {
                 'success': True,
-                'message': f'Opportunity matching process started. Processing {len(master_opportunities)} master opportunities.',
-                'matching_id': matching_id
+                'message': f'Opportunity matching completed. Processing {len(master_opportunities)} master opportunities.',
+                'matching_id': matching_id,
+                'results': {
+                    'total_master': tracker['total_master'],
+                    'total_child': tracker['total_child'],
+                    'matches_found': tracker['matches_found'],
+                    'exact_matches': tracker['exact_matches'],
+                    'fuzzy_matches': tracker['fuzzy_matches'],
+                    'no_matches': tracker['no_matches'],
+                    'matches': tracker['matches'],
+                    'unmatched_summary': tracker.get('unmatched_summary', {})
+                }
             }
             
         except Exception as e:
@@ -441,49 +482,150 @@ class MasterChildOpportunityUpdateService:
                 'matching_id': matching_id
             }
 
-    async def _process_matching(
-        self, 
-        matching_id: str, 
-        master_opportunities: List[Dict], 
+    def _calculate_match_score(self, master_opp: Dict, child_opp: Dict) -> float:
+        """
+        Calculate matching score between master and child opportunities
+        Returns score from 0.0 to 1.0
+        """
+        score = 0.0
+        total_weight = 0.0
+
+        # Phone number matching (highest weight: 40%)
+        master_phone = self._normalize_phone(master_opp.get('phone', ''))
+        child_phone = self._normalize_phone(child_opp.get('phone', ''))
+
+        if master_phone and child_phone:
+            total_weight += 0.4
+            if master_phone == child_phone:
+                score += 0.4  # Exact phone match
+            elif self._phones_similar(master_phone, child_phone):
+                score += 0.3  # Similar phone numbers
+            elif master_phone[-7:] == child_phone[-7:] or master_phone[-10:] == child_phone[-10:]:
+                score += 0.2  # Last 7 or 10 digits match
+
+        # Name matching using fuzzy logic (weight: 35%)
+        master_name = master_opp.get('contact_name', '').strip().lower()
+        child_name = child_opp.get('contact_name', '').strip().lower()
+
+        if master_name and child_name:
+            total_weight += 0.35
+            name_similarity = fuzz.ratio(master_name, child_name) / 100.0
+
+            if name_similarity >= 0.95:  # Near exact match
+                score += 0.35
+            elif name_similarity >= 0.85:  # Good match
+                score += 0.25
+            elif name_similarity >= 0.70:  # Fair match
+                score += 0.15
+
+        # Date matching (weight: 25%)
+        master_date = self._extract_date(master_opp)
+        child_date = self._extract_date(child_opp)
+
+        if master_date and child_date:
+            total_weight += 0.25
+            date_diff = abs((master_date - child_date).days)
+
+            if date_diff == 0:  # Same date
+                score += 0.25
+            elif date_diff <= 7:  # Within a week
+                score += 0.20
+            elif date_diff <= 30:  # Within a month
+                score += 0.15
+            elif date_diff <= 90:  # Within 3 months
+                score += 0.10
+
+        # Normalize score by total weight
+        if total_weight > 0:
+            final_score = score / total_weight
+        else:
+            final_score = 0.0
+
+        return min(final_score, 1.0)  # Cap at 1.0
+
+    def _phones_similar(self, phone1: str, phone2: str) -> bool:
+        """Check if two phone numbers are similar"""
+        if not phone1 or not phone2:
+            return False
+
+        # Remove country codes for comparison
+        p1_digits = phone1.replace('+1', '').replace('+', '')
+        p2_digits = phone2.replace('+1', '').replace('+', '')
+
+        # Check if they share the last 7 digits (local number)
+        return p1_digits[-7:] == p2_digits[-7:]
+
+    def _extract_date(self, opportunity: Dict) -> Optional[datetime]:
+        """Extract and parse date from opportunity data"""
+        date_fields = ['Created on', 'created_date', 'date']
+
+        for field in date_fields:
+            date_str = opportunity.get(field, '')
+            if date_str:
+                try:
+                    # Try different date formats
+                    for fmt in ['%Y-%m-%dT%H:%M:%SZ', '%Y-%m-%dT%H:%M:%S.%fZ', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%m/%d/%Y', '%m/%d/%y']:
+                        try:
+                            return datetime.strptime(date_str, fmt)
+                        except ValueError:
+                            continue
+                except Exception:
+                    continue
+
+        return None
+
+    async def _perform_matching(
+        self,
+        matching_id: str,
+        master_opportunities: List[Dict],
         child_opportunities: List[Dict],
         match_threshold: float,
         high_confidence_threshold: float
     ):
-        """Process opportunity matching in background"""
-        
+        """Perform the actual matching logic - Child-to-Master matching"""
+
         tracker = self.matching_tracker[matching_id]
         tracker['status'] = 'processing'
-        
+
         matches = []
-        
-        for master_idx, master_opp in enumerate(master_opportunities):
+        matched_master_ids = set()  # Track which masters have already been matched
+
+        for child_idx, child_opp in enumerate(child_opportunities):
             try:
-                tracker['processed'] = master_idx + 1
-                tracker['status'] = f'processing_master_{master_idx + 1}/{len(master_opportunities)}'
-                
+                tracker['processed'] = child_idx + 1
+                tracker['status'] = f'processing_child_{child_idx + 1}/{len(child_opportunities)}'
+
                 best_match = None
                 best_score = 0.0
-                
-                # Compare with all child opportunities
-                for child_opp in child_opportunities:
+                best_master_opp = None
+
+                # Compare this child with all available master opportunities
+                for master_opp in master_opportunities:
+                    # Skip if this master has already been matched
+                    if master_opp['opportunity_id'] in matched_master_ids:
+                        continue
+
                     score = self._calculate_match_score(master_opp, child_opp)
-                    
+
                     if score >= match_threshold and score > best_score:
                         best_score = score
-                        best_match = child_opp
-                
+                        best_master_opp = master_opp
+
                 # Record match result
-                if best_match:
+                if best_master_opp:
                     match_type = 'exact' if best_score >= high_confidence_threshold else 'fuzzy'
-                    
+
+                    # Mark this master as matched
+                    matched_master_ids.add(best_master_opp['opportunity_id'])
+
                     # Only skip if the matched child has the same stage as master (meaning no change needed)
-                    same_stage = (master_opp['stage'].lower().strip() == best_match['stage'].lower().strip())
+                    same_stage = (best_master_opp['stage'].lower().strip() == child_opp['stage'].lower().strip())
                     can_update = not same_stage  # Update unless stages are the same
                     skip_reason = 'Same stage - no change needed' if same_stage else None
-                    
+
                     match_record = {
-                        'master_opportunity': master_opp,
-                        'child_opportunity': best_match,
+                        'master_opportunity': best_master_opp,
+                        'child_opportunity': child_opp,
                         'match_score': best_score,
                         'match_type': match_type,
                         'confidence': 'high' if best_score >= high_confidence_threshold else 'medium',
@@ -491,73 +633,63 @@ class MasterChildOpportunityUpdateService:
                         'skip_reason': skip_reason,
                         # Enhanced data for complete opportunity sync
                         'sync_data': {
-                            'assigned_to': best_match['assigned_to'],
-                            'status': best_match['status'],
-                            'stage': best_match['stage'],
-                            'pipeline_stage_id': best_match.get('pipeline_stage_id', ''),
-                            'source_pipeline_id': best_match['pipeline_id'],
-                            'target_pipeline_id': master_opp['pipeline_id']
+                            'assigned_to': child_opp['assigned_to'],
+                            'status': child_opp['status'],
+                            'stage': child_opp['stage'],
+                            'pipeline_stage_id': child_opp.get('pipeline_stage_id', ''),
+                            'source_pipeline_id': child_opp['pipeline_id'],
+                            'target_pipeline_id': best_master_opp['pipeline_id']
                         }
                     }
-                    
+
                     matches.append(match_record)
                     tracker['matches_found'] += 1
-                    
+
                     if match_type == 'exact':
                         tracker['exact_matches'] += 1
                     else:
                         tracker['fuzzy_matches'] += 1
-                        
-                    logger.info(f"Match found: {master_opp['contact_name']} -> {best_match['contact_name']} (score: {best_score:.2f})")
+
+                    logger.info(f"Match found: {child_opp['contact_name']} -> {best_master_opp['contact_name']} (score: {best_score:.2f})")
                 else:
-                    tracker['no_matches'] += 1
-                    # Enhanced debug logging for no matches
-                    logger.info(f"No match found for: {master_opp['contact_name']} (Phone: {master_opp['phone']}, Stage: {master_opp['stage']}, Pipeline: {master_opp.get('pipeline', 'N/A')})")
-                    
-                    # Create a record for unmatched master opportunity (to be processed individually)
+                    # No match found for this child - create a no-match record
                     no_match_record = {
-                        'master_opportunity': master_opp,
-                        'child_opportunity': None,
+                        'master_opportunity': None,
+                        'child_opportunity': child_opp,
                         'match_score': 0.0,
                         'match_type': 'no_match',
                         'confidence': 'none',
-                        'can_update': True,  # Always process unmatched masters
-                        'skip_reason': None,
-                        # Default sync data for unmatched opportunities
-                        'sync_data': {
-                            'assigned_to': '',  # Will be handled in update function
-                            'status': master_opp.get('status', 'open'),
-                            'stage': master_opp['stage'],
-                            'pipeline_stage_id': master_opp.get('pipeline_stage_id', ''),
-                            'source_pipeline_id': master_opp['pipeline_id'],
-                            'target_pipeline_id': master_opp['pipeline_id']
-                        }
+                        'can_update': False,
+                        'skip_reason': 'No matching master opportunity found',
+                        'sync_data': None
                     }
-                    
+
                     matches.append(no_match_record)
-                    
-                    # Log best partial scores for debugging
-                    if child_opportunities:
-                        best_partial_score = 0
-                        best_partial_child = None
-                        for child_opp in child_opportunities:
-                            partial_score = self._calculate_match_score(master_opp, child_opp)
-                            if partial_score > best_partial_score:
-                                best_partial_score = partial_score
-                                best_partial_child = child_opp
-                        
-                        if best_partial_child:
-                            logger.info(f"Best partial match for {master_opp['contact_name']}: {best_partial_child['contact_name']} (score: {best_partial_score:.2f}, threshold: {match_threshold:.2f})")
-                
+                    tracker['no_matches'] += 1
+                    logger.info(f"No match found for child: {child_opp['contact_name']} (Phone: {child_opp['phone']})")
+
             except Exception as e:
-                logger.error(f"Error matching master opportunity {master_idx + 1}: {str(e)}")
-        
+                logger.error(f"Error matching child opportunity {child_idx + 1}: {str(e)}")
+
         # Store matches and mark as completed
         tracker['matches'] = matches
         tracker['status'] = 'completed'
         tracker['completion_time'] = datetime.now().isoformat()
-        
-        logger.info(f"Matching completed: {len(matches)} matches found ({tracker['exact_matches']} exact, {tracker['fuzzy_matches']} fuzzy)")
+
+        # Generate unmatched summary
+        matched_children = [m for m in matches if m['match_type'] != 'no_match']
+        unmatched_children = [m for m in matches if m['match_type'] == 'no_match']
+
+        unmatched_summary = {
+            'total_child_opportunities': len(child_opportunities),
+            'matched_opportunities': len(matched_children),
+            'unmatched_opportunities': len(unmatched_children),
+            'note': 'Each child opportunity matches to at most one master opportunity'
+        }
+
+        tracker['unmatched_summary'] = unmatched_summary
+
+        logger.info(f"Matching completed: {len(matched_children)} matches found ({tracker['exact_matches']} exact, {tracker['fuzzy_matches']} fuzzy), {len(unmatched_children)} unmatched children")
 
     def get_matching_progress(self, matching_id: str) -> Dict[str, Any]:
         """Get progress for a matching operation"""
@@ -656,7 +788,9 @@ class MasterChildOpportunityUpdateService:
         
         # Pre-load pipeline mappings for all accounts
         pipeline_mappings = {}
-        unique_accounts = set(match['master_opportunity']['account_id'] for match in matches)
+        # Filter out no_match records before extracting account IDs
+        valid_matches = [match for match in matches if match.get('master_opportunity') is not None]
+        unique_accounts = set(match['master_opportunity']['account_id'] for match in valid_matches)
         
         for account_id in unique_accounts:
             api_key = account_api_keys.get(account_id)
@@ -680,6 +814,11 @@ class MasterChildOpportunityUpdateService:
                     match_number = batch_start + match_index + 1
                     
                     try:
+                        # Skip no_match records where master_opportunity is None
+                        if match.get('master_opportunity') is None:
+                            logger.info(f"[{match_number}/{total_matches}] Skipping no_match record")
+                            continue
+                            
                         master_opp = match['master_opportunity']
                         child_opp = match['child_opportunity']
                         sync_data = match['sync_data']
@@ -703,30 +842,27 @@ class MasterChildOpportunityUpdateService:
                         # Get pipeline mapping for this account
                         pipeline_mapping = pipeline_mappings.get(account_id, {})
                         
-                        logger.info(f"[{match_number}/{total_matches}] Syncing complete data for opportunity {opportunity_id} (Score: {match['match_score']:.2f})")
-                        logger.info(f"  → Owner: {sync_data['assigned_to']}")
-                        logger.info(f"  → Status: {sync_data['status']}")
-                        logger.info(f"  → Stage: {sync_data['stage']}")
-                        
-                        # Update opportunity with complete data
+                        logger.info(f"[{match_number}/{total_matches}] Updating opportunity {opportunity_id} with selective fields (Score: {match['match_score']:.2f})")
+                        logger.info(f"  → Pipeline Stage: {child_opp.get('stage', 'N/A')}")
+                        logger.info(f"  → Opportunity Value: {child_opp.get('value', child_opp.get('Lead Value', 'N/A'))}")
+
+                        # Update opportunity with selective fields only (pipeline stage and value)
                         if not dry_run:
-                            success = await self._update_master_opportunity_complete(
-                                client, pipeline_id, opportunity_id, sync_data, api_key, 
-                                master_opp, pipeline_mapping
+                            success = await self._update_master_opportunity_selective(
+                                client, pipeline_id, opportunity_id, child_opp, master_opp, api_key, pipeline_mapping
                             )
-                            
+
                             if success:
                                 progress['success_count'] += 1
-                                logger.info(f"[{match_number}/{total_matches}] Successfully synced opportunity {opportunity_id}")
+                                logger.info(f"[{match_number}/{total_matches}] Successfully updated opportunity {opportunity_id}")
                             else:
                                 progress['error_count'] += 1
-                                logger.error(f"[{match_number}/{total_matches}] Failed to sync opportunity {opportunity_id}")
+                                logger.error(f"[{match_number}/{total_matches}] Failed to update opportunity {opportunity_id}")
                         else:
                             progress['success_count'] += 1
-                            logger.info(f"[{match_number}/{total_matches}] [DRY RUN] Would sync complete data for opportunity {opportunity_id}")
-                            logger.info(f"  → Would set owner: {sync_data['assigned_to']}")
-                            logger.info(f"  → Would set status: {sync_data['status']}")
-                            logger.info(f"  → Would set stage: {sync_data['stage']}")
+                            logger.info(f"[{match_number}/{total_matches}] [DRY RUN] Would update opportunity {opportunity_id}")
+                            logger.info(f"  → Would update stage to: {child_opp.get('stage', 'N/A')}")
+                            logger.info(f"  → Would update value to: {child_opp.get('value', child_opp.get('Lead Value', 'N/A'))}")
                         
                         processed_matches += 1
                         
@@ -776,6 +912,23 @@ class MasterChildOpportunityUpdateService:
         
         # Save operation results
         await self._save_operation_results(processing_id, matches, progress)
+        
+        # Return results directly for API response
+        return {
+            'success': True,
+            'message': f'Opportunity update process completed. Processed {processed_matches} matches.',
+            'processing_id': processing_id,
+            'results': {
+                'total_matches': total_matches,
+                'processed': processed_matches,
+                'successful': progress['success_count'],
+                'failed': progress['error_count'],
+                'skipped': progress['skipped_count'],
+                'dry_run': progress['dry_run'],
+                'process_exact_only': progress['process_exact_only'],
+                'updates': []  # Would contain detailed update results
+            }
+        }
 
     async def _update_master_opportunity_complete(
         self, 
@@ -926,56 +1079,161 @@ class MasterChildOpportunityUpdateService:
             logger.error(f"Error updating opportunity {opportunity_id} complete data: {str(e)}")
             return False
 
-    async def _update_master_opportunity_owner(
-        self, 
-        client: httpx.AsyncClient, 
-        pipeline_id: str, 
-        opportunity_id: str, 
-        assigned_to: str,
+    async def _update_master_opportunity_selective(
+        self,
+        client: httpx.AsyncClient,
+        pipeline_id: str,
+        opportunity_id: str,
+        child_opp: Dict,
+        master_opp: Dict,
         api_key: str,
-        master_opportunity: Dict
+        pipeline_mapping: Dict
     ) -> bool:
-        """Legacy function: Update master opportunity owner only (kept for backward compatibility)"""
-        
+        """
+        Update master opportunity with only pipeline stage and opportunity value as requested
+        """
         try:
-            url = f"https://rest.gohighlevel.com/v1/pipelines/{pipeline_id}/opportunities/{opportunity_id}"
             headers = {
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json"
             }
-            
-            # Prepare update payload - only update the assignedTo field
-            payload = {
-                "assignedTo": assigned_to
-            }
-            
-            # Add other required/existing fields to maintain data integrity
-            if master_opportunity.get('opportunity_name'):
-                payload['title'] = master_opportunity['opportunity_name']
-            
-            if master_opportunity.get('status'):
-                payload['status'] = master_opportunity['status']
-            
-            response = await client.put(url, headers=headers, json=payload)
-            response.raise_for_status()
-            
-            logger.info(f"Successfully updated master opportunity {opportunity_id} owner to {assigned_to}")
+
+            update_data = {}
+
+            # 1. Update pipeline stage if different
+            child_stage = child_opp.get('stage', '').strip()
+            master_stage = master_opp.get('stage', '').strip()
+
+            if child_stage and child_stage.lower() != master_stage.lower():
+                # Find the correct stage ID for the target pipeline
+                target_stage_id = self.find_stage_id(child_stage, pipeline_id, pipeline_mapping)
+                if target_stage_id:
+                    update_data['stageId'] = target_stage_id
+                    logger.info(f"Will update stage from '{master_stage}' to '{child_stage}' (ID: {target_stage_id})")
+                else:
+                    logger.warning(f"Could not find stage ID for '{child_stage}' in pipeline {pipeline_id}")
+
+            # 2. Update opportunity value if different
+            child_value = child_opp.get('value') or child_opp.get('Lead Value', 0)
+            master_value = master_opp.get('value') or master_opp.get('Lead Value', 0)
+
+            # Convert to float for comparison
+            try:
+                child_value_float = float(child_value) if child_value else 0.0
+                master_value_float = float(master_value) if master_value else 0.0
+
+                if child_value_float != master_value_float:
+                    update_data['value'] = child_value_float
+                    logger.info(f"Will update value from {master_value_float} to {child_value_float}")
+            except (ValueError, TypeError):
+                logger.warning(f"Could not parse opportunity values: child={child_value}, master={master_value}")
+
+            # Only proceed if there are changes to make
+            if not update_data:
+                logger.info(f"No changes needed for opportunity {opportunity_id} - values already match")
+                return True
+
+            # Use the status update endpoint to change stage
+            if 'stageId' in update_data:
+                status_url = f"https://rest.gohighlevel.com/v1/pipelines/{pipeline_id}/opportunities/{opportunity_id}/status"
+                status_payload = {
+                    "stageId": update_data['stageId']
+                }
+
+                # Include status if available
+                if master_opp.get('status'):
+                    status_payload['status'] = master_opp['status']
+
+                status_response = await client.put(status_url, headers=headers, json=status_payload)
+                status_response.raise_for_status()
+                logger.info(f"Successfully updated opportunity {opportunity_id} stage")
+
+            # Update opportunity value using main opportunity endpoint
+            if 'value' in update_data:
+                opp_url = f"https://rest.gohighlevel.com/v1/pipelines/{pipeline_id}/opportunities/{opportunity_id}"
+                value_payload = {
+                    "value": update_data['value']
+                }
+
+                # Include required fields to maintain data integrity
+                if master_opp.get('opportunity_name'):
+                    value_payload['title'] = master_opp['opportunity_name']
+                if master_opp.get('status'):
+                    value_payload['status'] = master_opp['status']
+
+                value_response = await client.put(opp_url, headers=headers, json=value_payload)
+                value_response.raise_for_status()
+                logger.info(f"Successfully updated opportunity {opportunity_id} value to {update_data['value']}")
+
+            logger.info(f"Successfully updated opportunity {opportunity_id} with fields: {list(update_data.keys())}")
             return True
-            
+
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                logger.error(f"Master opportunity {opportunity_id} or pipeline {pipeline_id} not found")
+                logger.error(f"Opportunity {opportunity_id} or pipeline {pipeline_id} not found")
             elif e.response.status_code == 403:
                 logger.error(f"Access denied for opportunity {opportunity_id} - check API key permissions")
             elif e.response.status_code == 422:
-                logger.error(f"Invalid assignedTo user ID {assigned_to} for opportunity {opportunity_id}")
+                logger.error(f"Validation error updating opportunity {opportunity_id}: {e.response.text}")
             else:
                 logger.error(f"HTTP error updating opportunity {opportunity_id}: {e.response.status_code} - {e.response.text}")
             return False
-            
+
         except Exception as e:
             logger.error(f"Error updating opportunity {opportunity_id}: {str(e)}")
             return False
+
+    def generate_unmatched_csv(self, unmatched_opportunities: List[Dict], matching_id: str) -> str:
+        """
+        Generate CSV file for unmatched child opportunities
+        """
+        if not unmatched_opportunities:
+            return ""
+
+        # Prepare data for CSV
+        csv_data = []
+        for opp in unmatched_opportunities:
+            csv_row = {
+                'Opportunity Name': opp.get('opportunity_name', opp.get('Opportunity Name', '')),
+                'Contact Name': opp.get('contact_name', opp.get('Contact Name', '')),
+                'Phone': opp.get('phone', ''),
+                'Email': opp.get('email', ''),
+                'Pipeline': opp.get('pipeline', ''),
+                'Stage': opp.get('stage', ''),
+                'Lead Value': opp.get('value', opp.get('Lead Value', '0')),
+                'Source': opp.get('source', ''),
+                'Assigned': opp.get('assigned', ''),
+                'Created on': opp.get('Created on', opp.get('created_date', '')),
+                'Updated on': opp.get('Updated on', ''),
+                'Status': opp.get('status', ''),
+                'Opportunity ID': opp.get('opportunity_id', opp.get('Opportunity ID', '')),
+                'Contact ID': opp.get('contact_id', opp.get('Contact ID', '')),
+                'Pipeline Stage ID': opp.get('pipeline_stage_id', opp.get('Pipeline Stage ID', '')),
+                'Pipeline ID': opp.get('pipeline_id', opp.get('Pipeline ID', '')),
+                'Account Id': opp.get('account_id', opp.get('Account Id', '')),
+                'Match Reason': 'No matching opportunity found in master account'
+            }
+            csv_data.append(csv_row)
+
+        # Convert to CSV
+        output = io.StringIO()
+        if csv_data:
+            df = pd.DataFrame(csv_data)
+            df.to_csv(output, index=False)
+
+        csv_content = output.getvalue()
+
+        # Save to file
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"unmatched_opportunities_{matching_id}_{timestamp}.csv"
+        filepath = os.path.join(self.results_dir, filename)
+
+        with open(filepath, 'w', newline='', encoding='utf-8') as f:
+            f.write(csv_content)
+
+        logger.info(f"Generated unmatched opportunities CSV: {filepath} ({len(unmatched_opportunities)} opportunities)")
+
+        return csv_content
 
     async def _save_operation_results(self, processing_id: str, matches: List[Dict], progress: Dict):
         """Save operation results to file"""
@@ -1144,6 +1402,114 @@ class MasterChildOpportunityUpdateService:
             child_df.to_csv(child_output, index=False)
         
         return master_output.getvalue(), child_output.getvalue()
+
+    async def export_unmatched_and_failed_to_csv(self, processing_id: str) -> str:
+        """Export unmatched records and failed updates to CSV"""
+        try:
+            # Get the progress data
+            progress = self.progress_tracker.get(processing_id)
+            if not progress:
+                # Try to find any recent processing data
+                if self.progress_tracker:
+                    # Get the most recent processing ID
+                    recent_ids = list(self.progress_tracker.keys())
+                    if recent_ids:
+                        processing_id = recent_ids[-1]  # Use the most recent
+                        progress = self.progress_tracker.get(processing_id)
+                        logger.info(f"Using most recent processing ID: {processing_id}")
+
+            if not progress:
+                return "Error: No processing data found. Please complete the sync process first."
+
+            # Get the matching tracker data - try to find it by looking for recent matching data
+            tracker = self.matching_tracker.get(processing_id)
+            if not tracker and self.matching_tracker:
+                # Try to find matching data from recent operations
+                recent_matching_ids = list(self.matching_tracker.keys())
+                if recent_matching_ids:
+                    recent_matching_id = recent_matching_ids[-1]
+                    tracker = self.matching_tracker.get(recent_matching_id)
+                    logger.info(f"Using recent matching data from ID: {recent_matching_id}")
+
+            if not tracker:
+                # If no matching data, just export failed updates
+                logger.warning(f"No matching data found for processing {processing_id}, exporting failed updates only")
+
+            # Prepare CSV data
+            csv_data = []
+            timestamp = datetime.now().isoformat()
+
+            # Add unmatched records if we have matching data
+            if tracker:
+                matches = tracker.get('matches', [])
+                for match in matches:
+                    if match.get('match_type') == 'no_match':
+                        child_opp = match.get('child_opportunity', {})
+                        csv_data.append({
+                            'type': 'unmatched',
+                            'contact_name': child_opp.get('contact_name', ''),
+                            'phone': child_opp.get('phone', ''),
+                            'email': child_opp.get('email', ''),
+                            'opportunity_name': child_opp.get('opportunity_name', ''),
+                            'pipeline': child_opp.get('pipeline', ''),
+                            'stage': child_opp.get('stage', ''),
+                            'status': child_opp.get('status', ''),
+                            'value': child_opp.get('value', ''),
+                            'account_id': child_opp.get('account_id', ''),
+                            'opportunity_id': child_opp.get('opportunity_id', ''),
+                            'match_score': match.get('match_score', 0.0),
+                            'match_type': match.get('match_type', ''),
+                            'confidence': match.get('confidence', ''),
+                            'skip_reason': match.get('skip_reason', ''),
+                            'error_message': '',
+                            'timestamp': timestamp,
+                            'processing_id': processing_id
+                        })
+
+            # Add failed updates from recent_errors
+            recent_errors = progress.get('recent_errors', [])
+            for error in recent_errors:
+                csv_data.append({
+                    'type': 'failed_update',
+                    'contact_name': '',
+                    'phone': '',
+                    'email': '',
+                    'opportunity_name': '',
+                    'pipeline': '',
+                    'stage': '',
+                    'status': '',
+                    'value': '',
+                    'account_id': '',
+                    'opportunity_id': '',
+                    'match_score': 0.0,
+                    'match_type': '',
+                    'confidence': '',
+                    'skip_reason': '',
+                    'error_message': error,
+                    'timestamp': timestamp,
+                    'processing_id': processing_id
+                })
+
+            # If no data at all, return informative message
+            if not csv_data:
+                return "No unmatched records or failed updates found to export."
+
+            df = pd.DataFrame(csv_data)
+
+            # Create filename with timestamp
+            filename = f"unmatched_and_failed_updates_{processing_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            filepath = os.path.join(self.results_dir, filename)
+
+            # Save to file
+            df.to_csv(filepath, index=False)
+
+            logger.info(f"Exported {len(csv_data)} records to {filepath}")
+
+            return f"Successfully exported {len(csv_data)} records to {filename}"
+
+        except Exception as e:
+            logger.error(f"Error exporting unmatched and failed records: {str(e)}")
+            return f"Error exporting data: {str(e)}"
 
 # Create global instance
 master_child_opportunity_service = MasterChildOpportunityUpdateService()

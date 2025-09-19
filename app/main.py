@@ -327,7 +327,7 @@ async def bulk_update_notes_api(csvFile: UploadFile = File(...)):
 @app.post("/api/bulk-update-opportunity")
 async def bulk_update_opportunity_api(csvFile: UploadFile = File(...)):
     expected_columns = [
-        "Found in Carrier?", "Updated in GHL?", "Client Phone Number", "Lead Vender", "Date",
+        "Client Phone Number", "Lead Vender", "Date",
         "INSURED NAME", "Buffer Agent", "Agent", "Status", "Carrier", "Product Type",
         "Draft Date", "From Callback?", "Notes", "Policy Number", "Carrier Audit",
         "ProductTypeCarrier", "Level Or GI"
@@ -568,7 +568,9 @@ async def bulk_update_opportunity_api(csvFile: UploadFile = File(...)):
                     agent_id_map = {
                         "Benjamin": "uO52LEhmrtCqg9eYdiIZ",
                         "Lydia": "XgpXx6hOyuj3KjGzjxUO",
-                        "Claudia": "Y4DkBuz0jORYFvkMQzlF"
+                        "Claudia": "Y4DkBuz0jORYFvkMQzlF",
+                        "Isaac": "6iSNAPTQzX8Bx3UKSFvs",
+                        "Noah": "1j98oea5nlWSH8bLhOd0",
                     }
                     agent_name = row.get("Agent", "").strip()
                     assigned_to_id = agent_id_map.get(agent_name, "")
@@ -696,7 +698,7 @@ async def bulk_update_opportunity_api(csvFile: UploadFile = File(...)):
 @app.post("/api/audit-opportunity-matches")
 async def audit_opportunity_matches_api(csvFile: UploadFile = File(...)):
     expected_columns = [
-        "Found in Carrier?", "Updated in GHL?", "Client Phone Number", "Lead Vender", "Date",
+        "Client Phone Number", "Lead Vender", "Date",
         "INSURED NAME", "Buffer Agent", "Agent", "Status", "Carrier", "Product Type",
         "Draft Date", "From Callback?", "Notes", "Policy Number", "Carrier Audit",
         "ProductTypeCarrier", "Level Or GI"
