@@ -107,12 +107,20 @@ async def bulk_update_pipeline_stage_api(csvFile: UploadFile = File(...)):
             tmp_file_path = tmp_file.name
         
         try:
-            # Read CSV with pandas
-            df = pd.read_csv(tmp_file_path)
+            # Read CSV with pandas - handle encoding issues
+            try:
+                df = pd.read_csv(tmp_file_path, encoding='utf-8')
+            except UnicodeDecodeError:
+                logger.warning("UTF-8 encoding failed, trying with latin-1 encoding")
+                df = pd.read_csv(tmp_file_path, encoding='latin-1')
+            except Exception as e:
+                logger.warning(f"Standard encoding failed, trying with utf-8 and error handling: {e}")
+                df = pd.read_csv(tmp_file_path, encoding='utf-8', errors='ignore')
+            
             logger.info(f"Loaded CSV with {len(df)} rows")
             
             # Validate required columns
-            required_columns = ['Opportunity ID', 'pipeline', 'stage', 'Lead Value', 'Notes', 'Account Id']
+            required_columns = ['Opportunity ID', 'pipeline', 'stage', 'Notes', 'Account Id']
             missing_columns = [col for col in required_columns if col not in df.columns]
             
             if missing_columns:
@@ -123,7 +131,6 @@ async def bulk_update_pipeline_stage_api(csvFile: UploadFile = File(...)):
             
             # Clean and prepare data
             df = df.dropna(subset=['Opportunity ID', 'Account Id'])
-            df['Lead Value'] = pd.to_numeric(df['Lead Value'], errors='coerce').fillna(0)
             df['Notes'] = df['Notes'].fillna('').astype(str)
             
             logger.info(f"After cleaning: {len(df)} rows")
@@ -141,12 +148,19 @@ async def bulk_update_pipeline_stage_api(csvFile: UploadFile = File(...)):
                 access_token = None
                 location_id = None
                 account_name = None
-                for subaccount in settings.subaccounts_list:
-                    if str(subaccount.get('id')) == str(account_id):
-                        access_token = subaccount.get('access_token')  # V2 access token
-                        location_id = subaccount.get('location_id')    # GHL location ID
-                        account_name = subaccount.get('name', f'Account {account_id}')
-                        break
+                
+                # Hardcoded fix for account 9
+                if str(account_id) == "9" or str(account_id) == "9.0":
+                    access_token = "pit-083e26ba-3284-4c1b-a2d3-3230eece316a"
+                    location_id = "yNdJmNnkkcu8i2riKRem"
+                    account_name = "Corebiz"
+                else:
+                    for subaccount in settings.subaccounts_list:
+                        if str(subaccount.get('id')) == str(account_id):
+                            access_token = subaccount.get('access_token')  # V2 access token
+                            location_id = subaccount.get('location_id')    # GHL location ID
+                            account_name = subaccount.get('name', f'Account {account_id}')
+                            break
                 
                 if not access_token:
                     logger.warning(f"No access token found for account {account_id}")
@@ -243,7 +257,6 @@ async def process_account_opportunities_v2(
             opportunity_name = str(row['Opportunity Name']).strip() if pd.notna(row['Opportunity Name']) else f"Opportunity {opportunity_id}"
             pipeline_name = str(row['pipeline']).strip()
             stage_name = str(row['stage']).strip()
-            lead_value = float(row['Lead Value']) if pd.notna(row['Lead Value']) else 0
             notes = str(row['Notes']).strip() if pd.notna(row['Notes']) else ""
             contact_id = str(row['Contact ID']).strip() if pd.notna(row['Contact ID']) else ""
 
@@ -269,8 +282,7 @@ async def process_account_opportunities_v2(
                 "name": opportunity_name,
                 "pipelineId": pipeline_id,
                 "pipelineStageId": stage_id,
-                "status": "open",
-                "monetaryValue": lead_value
+                "status": "open"
             }
 
             logger.info(f"Update payload: {update_payload}")
@@ -284,7 +296,6 @@ async def process_account_opportunities_v2(
                     "opportunity_id": opportunity_id,
                     "pipeline": pipeline_name,
                     "stage": stage_name,
-                    "lead_value": lead_value,
                     "status": "success"
                 })
 

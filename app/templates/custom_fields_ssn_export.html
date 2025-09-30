@@ -1,0 +1,498 @@
+{% extends "base.html" %}
+{% block content %}
+<script>
+// Auth protection
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('ssn-export-content').style.display = 'none';
+    function checkAuth() {
+        if (!window.firebase || !firebase.auth) {
+            setTimeout(checkAuth, 100);
+            return;
+        }
+        const firebaseConfig = {
+            apiKey: "AIzaSyASVU8LlpqQ4Dpc-BSSfxyRbsCXJtgjKy4",
+            authDomain: "automation-portal-7a891.firebaseapp.com",
+            databaseURL: "https://automation-portal-7a891.firebaseio.com",
+            projectId: "automation-portal-7a891",
+            storageBucket: "automation-portal-7a891.appspot.com",
+            messagingSenderId: "850682394607",
+            appId: "1:850682394607:web:e42c2edd1ed536a64f281a"
+        };
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        firebase.auth().onAuthStateChanged(function(user) {
+            if (!user) {
+                window.location.href = "/login";
+            } else {
+                document.getElementById('ssn-export-content').style.display = '';
+            }
+        });
+    }
+    checkAuth();
+});
+</script>
+
+<div class="container mt-5" id="ssn-export-content" style="display: none;">
+    <div class="row">
+        <div class="col-md-8">
+            <h2 class="mb-4">
+                <i class="fas fa-download text-primary me-2"></i>
+                Opportunities Export (Dashboard Duplicate)
+            </h2>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="/" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Home
+            </a>
+        </div>
+    </div>
+
+    <div class="alert alert-info">
+        <h6><i class="fas fa-info-circle me-2"></i>About This Export:</h6>
+        <p class="mb-1">This tool exports <strong>opportunities data</strong> from selected GHL accounts, acting exactly like the dashboard export:</p>
+        <ul class="mb-0">
+            <li><strong>Standard Opportunities Export</strong> - Exports all opportunities from all pipelines</li>
+            <li><strong>Dashboard Format</strong> - Uses the exact same data structure as the main dashboard export</li>
+            <li><strong>V1 API Integration</strong> - Uses GHL V1 API for reliable opportunity and pipeline data access</li>
+            <li><strong>Complete Opportunity Data</strong> - Includes pipeline, stage, lead value, status, source, and assignment information</li>
+            <li><strong>All Opportunities</strong> - Exports all opportunities regardless of contact data</li>
+            <li><strong>Multiple Accounts</strong> - Select one or more accounts for bulk export</li>
+            <li><strong>Excel/CSV Support</strong> - Export data in either Excel or CSV format</li>
+            <li><strong>Standard Format</strong> - Data matches the exact format used by the main dashboard</li>
+        </ul>
+        <div class="alert alert-warning mt-2">
+            <strong>Note:</strong> This export is now a complete duplicate of the dashboard export functionality.
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-cog me-2"></i>Export Configuration</h6>
+        </div>
+        <div class="card-body">
+            <form id="ssn-export-form">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Select Accounts:</label>
+                        <div id="account-selection" class="border p-3" style="max-height: 200px; overflow-y: auto;">
+                            <!-- Account checkboxes will be loaded here -->
+                            <div class="text-center">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Loading accounts...</span>
+                                </div>
+                                <span class="ms-2">Loading accounts...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Export Options:</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="include-contacts" checked disabled>
+                            <label class="form-check-label" for="include-contacts">
+                                <i class="fas fa-briefcase me-1"></i> Export All Opportunities (Standard Dashboard Export)
+                            </label>
+                            <small class="form-text text-muted">This tool exports all opportunities from selected accounts using dashboard export format.</small>
+                        </div>
+                        <div class="form-check mt-3">
+                            <label class="form-label">Export Format:</label>
+                            <select class="form-select" id="export-format">
+                                <option value="csv">CSV Format</option>
+                                <option value="excel">Excel Format (.xlsx)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-outline-primary" id="preview-btn">
+                            <i class="fas fa-eye me-1"></i> Preview Data
+                        </button>
+                        <button type="button" class="btn btn-success" id="export-btn">
+                            <i class="fas fa-download me-1"></i> Export Opportunities
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-outline-info" id="test-connections-btn">
+                            <i class="fas fa-plug me-1"></i> Test All Connections
+                        </button>
+                        <button type="button" class="btn btn-outline-warning" id="check-pipelines-btn">
+                            <i class="fas fa-sitemap me-1"></i> Check Pipelines
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="status-area" class="mt-3"></div>
+    
+    <div class="progress mt-3" style="height: 25px; display:none;" id="progress-container">
+        <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+             role="progressbar" style="width: 0%">0%</div>
+    </div>
+
+    <div id="preview-results" class="mt-4" style="display: none;">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-eye me-2"></i>Data Preview</h6>
+            </div>
+            <div class="card-body">
+                <div id="preview-content">
+                    <!-- Preview content will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="export-summary" class="mt-4" style="display: none;">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Export Summary</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h3 class="text-primary" id="total-accounts">0</h3>
+                                <p class="card-text">Accounts Processed</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h3 class="text-success" id="total-records">0</h3>
+                                <p class="card-text">Records Exported</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h3 class="text-info" id="ssn-fields-found">0</h3>
+                                <p class="card-text">SSN Fields Found</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadAccounts();
+    
+    document.getElementById('preview-btn').addEventListener('click', previewData);
+    document.getElementById('export-btn').addEventListener('click', exportData);
+    document.getElementById('test-connections-btn').addEventListener('click', testConnections);
+    document.getElementById('check-pipelines-btn').addEventListener('click', checkPipelines);
+});
+
+async function loadAccounts() {
+    try {
+        const response = await fetch('/api/custom-fields-ssn-export/accounts');
+        const result = await response.json();
+        
+        const accountSelection = document.getElementById('account-selection');
+        
+        if (result.success && result.accounts.length > 0) {
+            let html = '';
+            result.accounts.forEach(account => {
+                const statusIcon = account.has_access_token ? 
+                    '<i class="fas fa-check-circle text-success"></i>' : 
+                    '<i class="fas fa-exclamation-triangle text-warning"></i>';
+                
+                html += `
+                    <div class="form-check">
+                        <input class="form-check-input account-checkbox" type="checkbox" 
+                               value="${account.id}" id="account-${account.id}"
+                               ${!account.has_access_token ? 'disabled' : ''}>
+                        <label class="form-check-label" for="account-${account.id}">
+                            ${statusIcon} ${account.name} (ID: ${account.id})
+                        </label>
+                    </div>
+                `;
+            });
+            accountSelection.innerHTML = html;
+        } else {
+            accountSelection.innerHTML = '<div class="alert alert-warning">No accounts found or error loading accounts.</div>';
+        }
+    } catch (error) {
+        console.error('Error loading accounts:', error);
+        document.getElementById('account-selection').innerHTML = 
+            '<div class="alert alert-danger">Error loading accounts. Please refresh the page.</div>';
+    }
+}
+
+function getSelectedAccounts() {
+    const checkboxes = document.querySelectorAll('.account-checkbox:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+async function previewData() {
+    const selectedAccounts = getSelectedAccounts();
+    const includeContacts = true; // Always true for opportunities export
+    const includeOpportunities = false; // Not used for dashboard export
+    
+    if (selectedAccounts.length === 0) {
+        showStatus('Please select at least one account.', 'warning');
+        return;
+    }
+    
+    showStatus('Generating preview...', 'info');
+    
+    try {
+        const formData = new FormData();
+        formData.append('selected_accounts', selectedAccounts.join(','));
+        formData.append('include_contacts', includeContacts);
+        formData.append('include_opportunities', includeOpportunities);
+        
+        const response = await fetch('/api/custom-fields-ssn-export/preview', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            displayPreview(result);
+            showStatus('Preview generated successfully!', 'success');
+        } else {
+            showStatus(`Preview failed: ${result.message}`, 'danger');
+        }
+    } catch (error) {
+        console.error('Preview error:', error);
+        showStatus('Error generating preview. Please try again.', 'danger');
+    }
+}
+
+async function exportData() {
+    const selectedAccounts = getSelectedAccounts();
+    const includeContacts = true; // Always true for opportunities export
+    const includeOpportunities = false; // Not used for dashboard export
+    const exportFormat = document.getElementById('export-format').value;
+    
+    if (selectedAccounts.length === 0) {
+        showStatus('Please select at least one account.', 'warning');
+        return;
+    }
+    
+    showStatus('Starting export...', 'info');
+    showProgress(10);
+    
+    try {
+        const formData = new FormData();
+        formData.append('selected_accounts', selectedAccounts.join(','));
+        formData.append('include_contacts', includeContacts);
+        formData.append('include_opportunities', includeOpportunities);
+        formData.append('export_format', exportFormat);
+        
+        showProgress(50);
+        
+        const response = await fetch('/api/custom-fields-ssn-export/export', {
+            method: 'POST',
+            body: formData
+        });
+        
+        showProgress(90);
+        
+        if (response.ok) {
+            // Handle file download
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `custom_fields_ssn_export_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            showProgress(100);
+            showStatus('Export completed successfully! File downloaded.', 'success');
+            
+            // Show summary
+            displayExportSummary({
+                accounts_processed: selectedAccounts.length,
+                records_exported: 'Downloaded',
+                ssn_fields_found: 'Check file'
+            });
+        } else {
+            const errorResult = await response.json();
+            showStatus(`Export failed: ${errorResult.message}`, 'danger');
+        }
+    } catch (error) {
+        console.error('Export error:', error);
+        showStatus('Error during export. Please try again.', 'danger');
+    } finally {
+        hideProgress();
+    }
+}
+
+async function testConnections() {
+    const selectedAccounts = getSelectedAccounts();
+    
+    if (selectedAccounts.length === 0) {
+        showStatus('Please select accounts to test connections.', 'warning');
+        return;
+    }
+    
+    showStatus('Testing connections...', 'info');
+    
+    const results = [];
+    for (const accountId of selectedAccounts) {
+        try {
+            const response = await fetch(`/api/custom-fields-ssn-export/test-connection/${accountId}`);
+            const result = await response.json();
+            results.push({
+                accountId,
+                success: result.success,
+                message: result.message
+            });
+        } catch (error) {
+            results.push({
+                accountId,
+                success: false,
+                message: 'Connection test failed'
+            });
+        }
+    }
+    
+    // Display results
+    let html = '<h6>Connection Test Results:</h6><ul>';
+    results.forEach(result => {
+        const icon = result.success ? 
+            '<i class="fas fa-check-circle text-success"></i>' : 
+            '<i class="fas fa-times-circle text-danger"></i>';
+        html += `<li>${icon} Account ${result.accountId}: ${result.message}</li>`;
+    });
+    html += '</ul>';
+    
+    showStatus(html, 'info');
+}
+
+function displayPreview(result) {
+    const previewDiv = document.getElementById('preview-results');
+    const contentDiv = document.getElementById('preview-content');
+    
+    if (result.data && result.data.length > 0) {
+        let html = `<p><strong>Found ${result.total_count || result.data.length} records</strong> (showing first 10):</p>`;
+        html += '<div class="table-responsive"><table class="table table-sm table-striped">';
+        
+        // Headers
+        const headers = Object.keys(result.data[0]);
+        html += '<thead><tr>';
+        headers.forEach(header => {
+            html += `<th>${header}</th>`;
+        });
+        html += '</tr></thead><tbody>';
+        
+        // Data rows
+        result.data.forEach(row => {
+            html += '<tr>';
+            headers.forEach(header => {
+                const value = row[header] || '';
+                // Mask SSN-like data in preview
+                const maskedValue = header.toLowerCase().includes('ssn') && value ? 
+                    'XXX-XX-' + value.slice(-4) : value;
+                html += `<td>${maskedValue}</td>`;
+            });
+            html += '</tr>';
+        });
+        
+        html += '</tbody></table></div>';
+        contentDiv.innerHTML = html;
+    } else {
+        contentDiv.innerHTML = '<div class="alert alert-warning">No data found with the current selection.</div>';
+    }
+    
+    previewDiv.style.display = 'block';
+}
+
+function displayExportSummary(summary) {
+    document.getElementById('total-accounts').textContent = summary.accounts_processed;
+    document.getElementById('total-records').textContent = summary.records_exported;
+    document.getElementById('ssn-fields-found').textContent = summary.ssn_fields_found;
+    document.getElementById('export-summary').style.display = 'block';
+}
+
+function showStatus(message, type) {
+    const statusArea = document.getElementById('status-area');
+    statusArea.innerHTML = `<div class="alert alert-${type}" role="alert">${message}</div>`;
+}
+
+function showProgress(percentage) {
+    const container = document.getElementById('progress-container');
+    const bar = document.getElementById('progress-bar');
+    container.style.display = 'block';
+    bar.style.width = percentage + '%';
+    bar.textContent = percentage + '%';
+}
+
+function hideProgress() {
+    document.getElementById('progress-container').style.display = 'none';
+}
+
+async function checkPipelines() {
+    const selectedAccounts = getSelectedAccounts();
+    
+    if (selectedAccounts.length === 0) {
+        showStatus('Please select accounts to check pipeline configurations.', 'warning');
+        return;
+    }
+    
+    showStatus('Checking pipeline and stage configurations...', 'info');
+    
+    const results = [];
+    for (const accountId of selectedAccounts) {
+        try {
+            const response = await fetch(`/api/custom-fields-ssn-export/pipelines/${accountId}`);
+            const result = await response.json();
+            results.push({
+                accountId,
+                success: result.success,
+                pipeline_map: result.pipeline_map,
+                stage_map: result.stage_map,
+                message: result.message || 'Pipeline check completed'
+            });
+        } catch (error) {
+            results.push({
+                accountId,
+                success: false,
+                pipeline_map: null,
+                stage_map: null,
+                message: 'Pipeline check failed'
+            });
+        }
+    }
+    
+    // Display results
+    let html = '<h6>Pipeline Configuration Check Results:</h6><ul>';
+    results.forEach(result => {
+        if (result.success && result.pipeline_map) {
+            const pipelineCount = Object.keys(result.pipeline_map).length;
+            const stageCount = Object.keys(result.stage_map).length;
+            html += `<li><i class="fas fa-check-circle text-success"></i> Account ${result.accountId}: Found ${pipelineCount} pipelines and ${stageCount} stages</li>`;
+            
+            // Show first few pipelines as examples
+            const pipelineNames = Object.values(result.pipeline_map).slice(0, 3);
+            if (pipelineNames.length > 0) {
+                html += `<li class="ms-3"><small class="text-muted">Example pipelines: ${pipelineNames.join(', ')}${Object.keys(result.pipeline_map).length > 3 ? '...' : ''}</small></li>`;
+            }
+        } else if (result.success && !result.pipeline_map) {
+            html += `<li><i class="fas fa-exclamation-triangle text-warning"></i> Account ${result.accountId}: No pipelines found or API key missing</li>`;
+        } else {
+            html += `<li><i class="fas fa-times-circle text-danger"></i> Account ${result.accountId}: ${result.message}</li>`;
+        }
+    });
+    html += '</ul>';
+    
+    showStatus(html, 'info');
+}
+</script>
+{% endblock %}

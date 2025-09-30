@@ -55,7 +55,6 @@ document.addEventListener('DOMContentLoaded', function() {
             <li><strong>Opportunity ID</strong> - Direct GHL Opportunity ID (required)</li>
             <li><strong>pipeline</strong> - Target pipeline name</li>
             <li><strong>stage</strong> - Target stage name</li>
-            <li><strong>Lead Value</strong> - Monetary value to update</li>
             <li><strong>Notes</strong> - Notes to add to contact (Contact ID required)</li>
             <li><strong>Account Id</strong> - Subaccount ID for access token mapping</li>
         </ul>
@@ -352,7 +351,6 @@ document.getElementById('csv-upload-form').addEventListener('submit', function(e
                                                         <th>Opportunity ID</th>
                                                         <th>Pipeline</th>
                                                         <th>Stage</th>
-                                                        <th>Lead Value</th>
                                                         <th>Status</th>
                                                     </tr>
                                                 </thead>
@@ -362,7 +360,6 @@ document.getElementById('csv-upload-form').addEventListener('submit', function(e
                                                             <td><code>${update.opportunity_id}</code></td>
                                                             <td>${update.pipeline}</td>
                                                             <td>${update.stage}</td>
-                                                            <td>$${update.lead_value}</td>
                                                             <td><span class="badge bg-success">Success</span></td>
                                                         </tr>
                                                     `).join('')}
