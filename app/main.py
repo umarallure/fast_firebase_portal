@@ -16,6 +16,7 @@ from app.api.transfer_portal_comparison import router as transfer_portal_compari
 from app.api.lead_search import router as lead_search_router
 from app.api.bulk_update_pipeline_stage import router as bulk_update_pipeline_stage_router
 from app.api.custom_fields_ssn_export import router as custom_fields_ssn_export_router
+from app.routes.pipelines_stages import router as pipelines_stages_router
 from app.config import settings
 from app.auth.firebase import get_current_user
 import httpx
@@ -164,6 +165,11 @@ app.include_router(
 app.include_router(
     custom_fields_ssn_export_router,
     tags=["custom-fields-ssn-export"]
+)
+
+app.include_router(
+    pipelines_stages_router,
+    tags=["pipelines-stages"]
 )
 
 # Add beneficiary info API router
