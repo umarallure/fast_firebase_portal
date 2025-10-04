@@ -44,9 +44,27 @@ document.getElementById('bulk-update-form').addEventListener('submit', function(
     })
     .then(res => res.json())
     .then(data => {
-        statusDiv.textContent = `Processed: ${data.totalRows}, Updated: ${data.updated}, Skipped: ${data.skipped}`;
+        console.log('Response data:', data); // Debug logging
+        
+        let message = `Processed: ${data.totalRows}, Updated: ${data.updated}, Skipped: ${data.skipped}`;
+        if (data.valueUpdates) {
+            message += `, Value Updates: ${data.valueUpdates}`;
+        }
+        statusDiv.textContent = message;
+        
         if (data.logFile) {
             logDiv.innerHTML = `<a href="/bulk-update-opportunity-stage/log" class="btn btn-warning">Download Failure Log</a>`;
+        }
+        
+        // Show detailed errors if any
+        if (data.skippedDetails && data.skippedDetails.length > 0) {
+            console.log('Skipped details:', data.skippedDetails); // Debug logging
+            const errorDetails = data.skippedDetails.slice(0, 5); // Show first 5 errors
+            const errorText = errorDetails.map(err => `Row ${err.row}: ${err.reason}`).join('\n');
+            statusDiv.innerHTML += `<br><br><strong>First few errors:</strong><br><pre style="font-size: 12px;">${errorText}</pre>`;
+            if (data.skippedDetails.length > 5) {
+                statusDiv.innerHTML += `<br><em>...and ${data.skippedDetails.length - 5} more errors. Download the log for full details.</em>`;
+            }
         }
     })
     .catch(err => {
