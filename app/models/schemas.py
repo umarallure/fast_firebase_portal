@@ -1,9 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import List, Optional, Dict, Any
 
 class SelectionSchema(BaseModel):
     account_id: str
-    api_key: str
     pipelines: List[str]
 
 class ExportRequest(BaseModel):

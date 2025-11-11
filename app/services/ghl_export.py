@@ -37,43 +37,124 @@ class GHLClient:
             logger.error(f"Stage fetch failed for pipeline {pipeline_id}: {str(e)}")
             return {}
 
-    async def get_opportunities(self, pipeline_id: str, pipeline_name: str, stage_map: Dict[str, str], account_id: str) -> List[Dict[str, Any]]:
+    async def get_opportunities(self, pipeline_id: str, pipeline_name: str, stage_map: Dict[str, str], account_id: str, max_records: int = None) -> List[Dict[str, Any]]:
         """Fetch all opportunities for a pipeline with pagination and include stage name and account id"""
-        opportunities = []
-        params = {"limit": 100}
-        page = 1
+        all_opportunities = []
+        start_after_id = None
+        start_after = None
+        limit = 100
+        seen_ids = set()  # Track seen opportunity IDs to detect duplicates
 
         while True:
             try:
-                response = await self.client.get(
-                    f"{self.base_url}/pipelines/{pipeline_id}/opportunities",
-                    params=params
-                )
-                response.raise_for_status()
+                # Build URL with cursor pagination parameters
+                url = f"{self.base_url}/pipelines/{pipeline_id}/opportunities?limit={limit}"
+                if start_after_id and start_after:
+                    url += f'&startAfterId={start_after_id}&startAfter={start_after}'
+                
+                logger.info(f"DEBUG: Pipeline {pipeline_name} - making request: {url}")
+                logger.info(f"DEBUG: Pipeline {pipeline_name} - current pagination: start_after_id={start_after_id}, start_after={start_after}")
+                
+                response = await self.client.get(url)
+                
+                if response.status_code == 429:
+                    wait_time = 2
+                    logger.warning(f"DEBUG: Rate limited for pipeline {pipeline_name}, waiting {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    continue
+                elif response.status_code != 200:
+                    logger.error(f"DEBUG: Error {response.status_code} for pipeline {pipeline_name}: {response.text}")
+                    break
+                
+                # Success
                 data = response.json()
-
-                batch = data.get("opportunities", [])
-                if not batch:
-                    break
-
-                opportunities.extend(batch)
+                opportunities = data.get("opportunities", [])
                 meta = data.get("meta", {})
-                next_id = meta.get("startAfterId")
-                next_time = meta.get("startAfter")
-
-                if next_id and next_time and next_id != params.get("startAfterId"):
-                    params["startAfterId"] = next_id
-                    params["startAfter"] = next_time
-                    page += 1
-                    await asyncio.sleep(0.3)  # Rate limit
-                else:
+                
+                logger.info(f"DEBUG: Pipeline {pipeline_name} - response meta: {meta}")
+                logger.info(f"DEBUG: Pipeline {pipeline_name} - received {len(opportunities)} opportunities")
+                
+                if opportunities:
+                    first_opp = opportunities[0]
+                    last_opp = opportunities[-1]
+                    logger.info(f"DEBUG: Pipeline {pipeline_name} - first opp id: {first_opp.get('id')}, createdAt: {first_opp.get('createdAt')}")
+                    logger.info(f"DEBUG: Pipeline {pipeline_name} - last opp id: {last_opp.get('id')}, createdAt: {last_opp.get('createdAt')}")
+                
+                if not opportunities:
+                    logger.info(f"DEBUG: Pipeline {pipeline_name} - no more opportunities, breaking")
+                    break  # No more opportunities
+                
+                all_opportunities.extend(opportunities)
+                
+                # Check for duplicate opportunities (indicates pagination issue)
+                duplicate_found = False
+                for opp in opportunities:
+                    opp_id = opp.get('id')
+                    if opp_id in seen_ids:
+                        logger.warning(f"DEBUG: Pipeline {pipeline_name} - DUPLICATE DETECTED: opportunity {opp_id} already seen")
+                        duplicate_found = True
+                        break
+                    seen_ids.add(opp_id)
+                
+                if duplicate_found:
+                    logger.warning(f"DEBUG: Pipeline {pipeline_name} - breaking due to duplicate opportunity")
+                    break  # Break the while loop if duplicate was found
+                
+                # Check if we've reached the max_records limit
+                if max_records and len(all_opportunities) >= max_records:
+                    logger.info(f"DEBUG: Pipeline {pipeline_name} - reached max limit of {max_records}, breaking")
+                    all_opportunities = all_opportunities[:max_records]  # Trim to exact limit
                     break
+                
+                # Check if there's a next page using meta information
+                meta = data.get("meta", {})
+                next_page_url = meta.get("nextPageUrl")
+                
+                logger.info(f"DEBUG: Pipeline {pipeline_name} - nextPageUrl present: {bool(next_page_url)}")
+                if next_page_url:
+                    logger.info(f"DEBUG: Pipeline {pipeline_name} - nextPageUrl: {next_page_url}")
+                
+                if not next_page_url:
+                    logger.info(f"DEBUG: Pipeline {pipeline_name} - no more pages, breaking")
+                    break  # No more pages
+                
+                # Extract pagination parameters from the last opportunity
+                if opportunities:
+                    last_opp = opportunities[-1]
+                    new_start_after_id = last_opp.get('id')
+                    created_at = last_opp.get('createdAt')
+                    
+                    logger.info(f"DEBUG: Pipeline {pipeline_name} - last opp data: id={new_start_after_id}, createdAt={created_at}")
+                    
+                    if created_at:
+                        try:
+                            dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                            new_start_after = int(dt.timestamp() * 1000)  # Convert to milliseconds
+                            logger.info(f"DEBUG: Pipeline {pipeline_name} - calculated start_after: {new_start_after} (from createdAt)")
+                        except Exception as e:
+                            logger.warning(f"DEBUG: Pipeline {pipeline_name} - failed to parse createdAt '{created_at}': {e}")
+                            new_start_after = meta.get('startAfter')
+                            logger.info(f"DEBUG: Pipeline {pipeline_name} - using meta startAfter: {new_start_after}")
+                    else:
+                        new_start_after = meta.get('startAfter')
+                        logger.info(f"DEBUG: Pipeline {pipeline_name} - no createdAt, using meta startAfter: {new_start_after}")
+                    
+                    logger.info(f"DEBUG: Pipeline {pipeline_name} - setting pagination for next request: start_after_id={new_start_after_id}, start_after={new_start_after}")
+                    start_after_id = new_start_after_id
+                    start_after = new_start_after
+                
+                logger.info(f"DEBUG: Pipeline {pipeline_name} - fetched {len(opportunities)} opportunities (total so far: {len(all_opportunities)})")
+                
+                # Small delay to avoid rate limits
+                await asyncio.sleep(0.1)
 
             except httpx.HTTPError as e:
                 logger.error(f"Opportunity fetch failed for {pipeline_id}: {str(e)}")
                 break
 
-        return [self.format_opportunity(opp, pipeline_name, stage_map, account_id) for opp in opportunities]
+        logger.info(f"DEBUG: Pipeline {pipeline_name} - final count: {len(all_opportunities)} opportunities (max_records: {max_records})")
+        logger.info(f"DEBUG: Pipeline {pipeline_name} - total unique opportunities seen: {len(seen_ids)}")
+        return [self.format_opportunity(opp, pipeline_name, stage_map, account_id) for opp in all_opportunities]
 
     @staticmethod
     def format_opportunity(opp: Dict[str, Any], pipeline_name: str, stage_map: Dict[str, str], account_id: str) -> Dict[str, Any]:
@@ -124,6 +205,10 @@ async def process_export_request(export_request: ExportRequest) -> bytes:
     stage_maps = {}
     clients = {}
     pipeline_stage_map = {}  # (api_key, pipeline_id) -> {stage_id: stage_name}
+    
+    # Set max_records to 200 for testing (change to None for full export)
+    max_records = 200
+    
     for selection in export_request.selections:
         client = GHLClient(selection.api_key)
         clients[selection.api_key] = client
@@ -132,21 +217,29 @@ async def process_export_request(export_request: ExportRequest) -> bytes:
             pipe for pipe in pipelines 
             if pipe["id"] in selection.pipelines
         ]
+        
+        logger.info(f"DEBUG: Processing account {selection.account_id} with {len(selected_pipelines)} pipelines")
+        for pipe in selected_pipelines:
+            logger.info(f"DEBUG: Pipeline {pipe['name']} ({pipe['id']}) selected for account {selection.account_id}")
+        
         # Build stage map from pipelines response
         for pipeline in selected_pipelines:
             stage_map = {stage["id"]: stage["name"] for stage in pipeline.get("stages", [])}
             pipeline_stage_map[(selection.api_key, pipeline["id"])] = stage_map
             tasks.append(
-                client.get_opportunities(pipeline["id"], pipeline["name"], stage_map, selection.account_id)
+                client.get_opportunities(pipeline["id"], pipeline["name"], stage_map, selection.account_id, max_records)
             )
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
     all_opps = []
-    for result in results:
+    for i, result in enumerate(results):
         if isinstance(result, Exception):
-            logger.error(f"Pipeline fetch failed: {str(result)}")
+            logger.error(f"Pipeline fetch failed for task {i}: {str(result)}")
             continue
+        logger.info(f"DEBUG: Task {i} returned {len(result)} opportunities")
         all_opps.extend(result)
+    
+    logger.info(f"DEBUG: Total opportunities collected: {len(all_opps)}")
 
     # Ensure columns are in the exact order as the reference, with 'stage' as stage name and 'Account Id'
     columns = [

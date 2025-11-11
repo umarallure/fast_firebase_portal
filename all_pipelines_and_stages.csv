@@ -1,4 +1,5 @@
 Account Id,Account Name,Pipeline Id,Pipeline Name,Stage Id,Stage Name
+1,Test,qIBDmYws4nkCbm9Rlejc,Chargeback Pipeline,1343da33-e314-4cca-ad38-3957dd0231ee,FDPF Pending Reason
 1,Test,qIBDmYws4nkCbm9Rlejc,Chargeback Pipeline,2976b40e-8635-4554-be5c-0f0e45bec3b1,FDPF Insufficient Funds
 1,Test,qIBDmYws4nkCbm9Rlejc,Chargeback Pipeline,9c5eb3ea-be5b-49dc-a9a0-6a51c4a3ea57,FDPF Incorrect Banking Info
 1,Test,qIBDmYws4nkCbm9Rlejc,Chargeback Pipeline,3afd6755-b033-4758-9cea-0bb1781223f0,FDPF Unauthorized Draft
@@ -175,17 +176,17 @@ Account Id,Account Name,Pipeline Id,Pipeline Name,Stage Id,Stage Name
 9,Corebiz,OimmO1GIrocJln3m6Qzt,Transfer Portal,0fbdd61b-decc-4d49-9986-b7aed0d20bda,Declined Underwriting
 9,Corebiz,OimmO1GIrocJln3m6Qzt,Transfer Portal,14bb6039-9164-40e7-b952-cf66e6114945,Pending Approval
 9,Corebiz,OimmO1GIrocJln3m6Qzt,Transfer Portal,6700e971-ff67-473f-a3d2-e682505c223d,Pending Manual Action
-10,Digicon,XM4yNsCEvGtnvw7z1K1N,Chargeback Pipeline,a4261258-fe7f-41d4-9903-9ed144087143,FDPF Pending Reason
-10,Digicon,XM4yNsCEvGtnvw7z1K1N,Chargeback Pipeline,53fccd54-134a-4b84-a0ab-99b3576cd023,FDPF Insufficient Funds
-10,Digicon,XM4yNsCEvGtnvw7z1K1N,Chargeback Pipeline,e8e25784-4b94-4f37-aa4b-73f148c2792e,FDPF Incorrect Banking Info
-10,Digicon,XM4yNsCEvGtnvw7z1K1N,Chargeback Pipeline,fbe4a409-b7b3-4ed2-98f8-38ae0168687e,FDPF Unauthorized Draft
-10,Digicon,XM4yNsCEvGtnvw7z1K1N,Chargeback Pipeline,dfd34e72-ff03-4af1-ad2f-da6cafda3b84,Pending Failed Payment Fix
-10,Digicon,XM4yNsCEvGtnvw7z1K1N,Chargeback Pipeline,48e837a9-f733-459a-9a5a-73228700c01b,Pending Lapse
-10,Digicon,XM4yNsCEvGtnvw7z1K1N,Chargeback Pipeline,9a9a94fa-800f-4691-a3c8-7ad00e978fcd,Chargeback Failed Payment
-10,Digicon,XM4yNsCEvGtnvw7z1K1N,Chargeback Pipeline,acafa4b5-0107-41ec-9c27-8acacfb99ed7,Chargeback Cancellation
-10,Digicon,XM4yNsCEvGtnvw7z1K1N,Chargeback Pipeline,afbf63e8-cdcc-472a-ad9f-d80242aad08d,Pending Chargeback Fix
-10,Digicon,XM4yNsCEvGtnvw7z1K1N,Chargeback Pipeline,ce73ba7d-6964-431c-9bcd-a978497d5de9,Chargeback Fixed
-10,Digicon,XM4yNsCEvGtnvw7z1K1N,Chargeback Pipeline,e8e39275-30b9-4358-8565-15bf8dc9181b,Chargeback DQ
+10,Digicon,k9PzfswnnBLHLySSovUa,Chargeback Pipeline,a4e4e294-4cbf-4b89-923f-971727c9f29f,FDPF Pending Reason
+10,Digicon,k9PzfswnnBLHLySSovUa,Chargeback Pipeline,4002f781-0565-41e8-bfa1-997abf3414e0,FDPF Insufficient Funds
+10,Digicon,k9PzfswnnBLHLySSovUa,Chargeback Pipeline,3b1375ba-86db-4fca-85da-b845bcab4a45,FDPF Incorrect Banking Info
+10,Digicon,k9PzfswnnBLHLySSovUa,Chargeback Pipeline,768d6442-bdc5-4bb0-b927-e40cca0c9937,FDPF Unauthorized Draft
+10,Digicon,k9PzfswnnBLHLySSovUa,Chargeback Pipeline,a7ff931a-08a4-4a6b-b98d-372698aed8cc,Pending Failed Payment Fix
+10,Digicon,k9PzfswnnBLHLySSovUa,Chargeback Pipeline,4e99a04d-5575-4af3-93ae-be12c69930ff,Pending Lapse
+10,Digicon,k9PzfswnnBLHLySSovUa,Chargeback Pipeline,95e20cb9-baac-45df-bd6a-22cc35dd5843,Chargeback Failed Payment
+10,Digicon,k9PzfswnnBLHLySSovUa,Chargeback Pipeline,256851d8-cb74-4e4a-aaac-2d13a056df67,Chargeback Cancellation
+10,Digicon,k9PzfswnnBLHLySSovUa,Chargeback Pipeline,4e2f1f9e-0338-465e-982f-70d7897f0360,Pending Chargeback Fix
+10,Digicon,k9PzfswnnBLHLySSovUa,Chargeback Pipeline,e140405f-2714-43e8-9a82-7b6416c3007d,Chargeback Fixed
+10,Digicon,k9PzfswnnBLHLySSovUa,Chargeback Pipeline,527a7cef-3f8b-4dd8-bce3-ac84f33b12a4,Chargeback DQ
 10,Digicon,zCCuwGOEXluakweUvHpC,Customer Pipeline,601a3097-6d0c-4b0c-97a5-52248cc7154e,Issued - Pending First Draft
 10,Digicon,zCCuwGOEXluakweUvHpC,Customer Pipeline,532603fb-e6f4-4d59-8fd7-1edb671b25a5,Premium Paid - Commission Pending
 10,Digicon,zCCuwGOEXluakweUvHpC,Customer Pipeline,8beb02a6-ef7e-4a6a-940f-f62a7ebea646,ACTIVE PLACED - Paid as Earned
@@ -557,75 +558,126 @@ Account Id,Account Name,Pipeline Id,Pipeline Name,Stage Id,Stage Name
 27,Zupax Marketing,Zv70tuQM38nQgujGN43p,Transfer Portal,096ffd36-bf6a-4d7c-bc18-c7605b872c63,Declined Underwriting
 27,Zupax Marketing,Zv70tuQM38nQgujGN43p,Transfer Portal,70de79b0-64ce-4b04-85aa-e9e9ad569027,Pending Approval
 27,Zupax Marketing,Zv70tuQM38nQgujGN43p,Transfer Portal,eb5b3b17-0d54-47d9-bda5-333876302a3d,Pending Manual Action
-29,Care Solutions,wqkTFv76rHmOHY9Xt05M,Chargeback Pipeline,48ce2279-1fde-410e-b27b-700bd67477a6,Chargeback Failed Payment
-29,Care Solutions,wqkTFv76rHmOHY9Xt05M,Chargeback Pipeline,849a63eb-3e28-4a5c-a9f4-3989cfccab6f,Chargeback Cancellation
-29,Care Solutions,wqkTFv76rHmOHY9Xt05M,Chargeback Pipeline,1069b0b2-596a-4ff5-9712-6cfee9e464b1,Chargeback DQ
-29,Care Solutions,kTcDZG2njMQfaohXxnpI,Customer Pipeline,f39f326c-8af3-45e5-96a7-ace9a4771381,Chargeback Fix Form
-29,Care Solutions,kTcDZG2njMQfaohXxnpI,Customer Pipeline,288ae3e6-73f9-4109-99ef-98f1efc9bb37,Approved Customer - Not Paid
-29,Care Solutions,kTcDZG2njMQfaohXxnpI,Customer Pipeline,e1f911ed-703f-428f-a825-da816b7cfc99,First Draft Payment Failure
-29,Care Solutions,kTcDZG2njMQfaohXxnpI,Customer Pipeline,a0d529a9-fb29-4e09-8987-9343e1352949,ACTIVE PLACED - Paid as Earned
-29,Care Solutions,kTcDZG2njMQfaohXxnpI,Customer Pipeline,37c2ff12-96e5-4421-972e-e5e5104a97ad,ACTIVE PLACED - Paid as Advanced
-29,Care Solutions,kTcDZG2njMQfaohXxnpI,Customer Pipeline,5d04e2a5-866b-420a-a901-33c44cbfc638,Pending Lapse
-29,Care Solutions,kTcDZG2njMQfaohXxnpI,Customer Pipeline,d53e524e-6a46-4455-9b80-9e50f110392a,Charge-Back / Payment Failure
-29,Care Solutions,kTcDZG2njMQfaohXxnpI,Customer Pipeline,8544a7a3-7c8f-4185-a505-d33e979a3db4,Charged-Back / Canceled Policy
-29,Care Solutions,kTcDZG2njMQfaohXxnpI,Customer Pipeline,87f102ca-e8ef-40f0-acc2-f987b005c9bb,ACTIVE - 3 Months +
-29,Care Solutions,kTcDZG2njMQfaohXxnpI,Customer Pipeline,75287041-27a4-4d32-8bd8-0465c8f55ef8,ACTIVE - 6 months +
-29,Care Solutions,kTcDZG2njMQfaohXxnpI,Customer Pipeline,3aeaf4fa-79eb-4d72-816b-f140a00fd87d,ACTIVE - Past Charge-Back Period
-29,Care Solutions,kTcDZG2njMQfaohXxnpI,Customer Pipeline,63aabea6-a169-4d6d-9df8-2b4d60a45dd6,Fixed Failed Payment
-29,Care Solutions,E4PlvY1kfLMk57Kx5Vcq,Transfer Portal,c2d970f9-2675-4ed3-9cd5-cbbaf063b630,Transfer Lead In
-29,Care Solutions,E4PlvY1kfLMk57Kx5Vcq,Transfer Portal,224d1478-e10f-404c-930a-c176591b8c93,Incomplete Transfer
-29,Care Solutions,E4PlvY1kfLMk57Kx5Vcq,Transfer Portal,274d3d9c-b932-4bf6-8653-563d9b5456b1,Returned to Center
-29,Care Solutions,E4PlvY1kfLMk57Kx5Vcq,Transfer Portal,729078b8-e8eb-4a6d-a061-67477a02929f,DQ'd Can't be sold
-29,Care Solutions,E4PlvY1kfLMk57Kx5Vcq,Transfer Portal,cb0ce064-c383-4ffd-9b85-94e23e3c620a,Needs to be Fixed
-29,Care Solutions,E4PlvY1kfLMk57Kx5Vcq,Transfer Portal,40fb326e-4f62-453f-a82d-de62d41699bf,Needs Carrier Application
-29,Care Solutions,E4PlvY1kfLMk57Kx5Vcq,Transfer Portal,59f64cf0-eab3-4f21-bed2-9eae84ddb8a0,Declined
-29,Care Solutions,E4PlvY1kfLMk57Kx5Vcq,Transfer Portal,96b47e6b-77c2-4d66-b3f8-d6c4792aca11,Pending Approval
-30,Cutting Edge,AoQjVw9FwjDEItTauhHm,Chargeback Pipeline,101c1182-dbb1-44e7-902b-f63719380195,Chargeback Failed Payment
-30,Cutting Edge,AoQjVw9FwjDEItTauhHm,Chargeback Pipeline,0c86dd7e-a3b0-40e2-a930-0c4e4fce8a85,Chargeback Cancellation
-30,Cutting Edge,AoQjVw9FwjDEItTauhHm,Chargeback Pipeline,6ccff4e5-47ff-4c6d-b891-900b7fe94a32,Chargeback DQ
-30,Cutting Edge,3zPCub5KaEvDbzGTuBle,Customer Pipeline,bb6d5c10-ed67-4341-b6cc-d09ced1253bb,Chargeback Fix Form
-30,Cutting Edge,3zPCub5KaEvDbzGTuBle,Customer Pipeline,d29e4ebb-a514-4df5-8307-8686b92f0ccf,Approved Customer - Not Paid
-30,Cutting Edge,3zPCub5KaEvDbzGTuBle,Customer Pipeline,73e91d1c-3190-499f-8f83-63a26f92c053,First Draft Payment Failure
-30,Cutting Edge,3zPCub5KaEvDbzGTuBle,Customer Pipeline,5b4f3540-8648-4bc0-b596-b78ae347801a,ACTIVE PLACED - Paid as Earned
-30,Cutting Edge,3zPCub5KaEvDbzGTuBle,Customer Pipeline,ec1d604c-ce59-473e-8824-7b68c5c130da,ACTIVE PLACED - Paid as Advanced
-30,Cutting Edge,3zPCub5KaEvDbzGTuBle,Customer Pipeline,bf83ef32-b672-4c64-bd1e-c0b06007fb42,Pending Lapse
-30,Cutting Edge,3zPCub5KaEvDbzGTuBle,Customer Pipeline,7476d086-6524-499b-8428-00e4344a4c9d,Charge-Back / Payment Failure
-30,Cutting Edge,3zPCub5KaEvDbzGTuBle,Customer Pipeline,29a7b0de-f9e6-4fd5-8da7-616149f57ae4,Charged-Back / Canceled Policy
-30,Cutting Edge,3zPCub5KaEvDbzGTuBle,Customer Pipeline,dbf2daa4-c040-41c0-ad3a-1911c14fa6f5,ACTIVE - 3 Months +
-30,Cutting Edge,3zPCub5KaEvDbzGTuBle,Customer Pipeline,a7bbe82f-d5cd-442b-80a9-49c5d2d6561d,ACTIVE - 6 months +
-30,Cutting Edge,3zPCub5KaEvDbzGTuBle,Customer Pipeline,50926592-a4f8-416d-96dd-32f6357c6b7f,ACTIVE - Past Charge-Back Period
-30,Cutting Edge,3zPCub5KaEvDbzGTuBle,Customer Pipeline,aac753f4-645f-4c3c-a59b-b1a57949c703,Fixed Failed Payment
-30,Cutting Edge,2REih3VAmTC2oTIbNDkW,Transfer Portal,fe68a664-b3f4-44e3-952b-7b134b6b07ac,Transfer Lead In
-30,Cutting Edge,2REih3VAmTC2oTIbNDkW,Transfer Portal,98253c6c-8b3a-4e2e-8f57-181f3d15b0a5,Incomplete Transfer
-30,Cutting Edge,2REih3VAmTC2oTIbNDkW,Transfer Portal,9717ff58-012e-4657-962f-18bda25df3dc,Returned to Center
-30,Cutting Edge,2REih3VAmTC2oTIbNDkW,Transfer Portal,98e7a340-d2eb-45af-b946-0cc16c5c09e3,DQ'd Can't be sold
-30,Cutting Edge,2REih3VAmTC2oTIbNDkW,Transfer Portal,da5e6609-cf3b-4aa2-84a1-38e82f191e60,Needs to be Fixed
-30,Cutting Edge,2REih3VAmTC2oTIbNDkW,Transfer Portal,0bc27ca0-c203-43f5-8d0d-e1c99fc0f1e9,Needs Carrier Application
-30,Cutting Edge,2REih3VAmTC2oTIbNDkW,Transfer Portal,9737100e-2e50-4121-b54f-9afb192a3033,Declined
-30,Cutting Edge,2REih3VAmTC2oTIbNDkW,Transfer Portal,0b18c30d-68a2-4e7f-ab30-eae253a35acc,Pending Approval
+28,Argon Comm,2ywuxwHIghvbiTzjqCLm,Chargeback Pipeline,5fcf0c75-e381-411b-ad1d-9fde2f49ea15,FDPF Pending Reason
+28,Argon Comm,2ywuxwHIghvbiTzjqCLm,Chargeback Pipeline,a1842380-be26-4b50-a653-c5b25bda6b19,FDPF Insufficient Funds
+28,Argon Comm,2ywuxwHIghvbiTzjqCLm,Chargeback Pipeline,93dfb8bf-7e2a-4a16-b270-d0917f01d8f8,FDPF Incorrect Banking Info
+28,Argon Comm,2ywuxwHIghvbiTzjqCLm,Chargeback Pipeline,4a5b5ca2-f380-4518-8757-cf2e607573e6,FDPF Unauthorized Draft
+28,Argon Comm,2ywuxwHIghvbiTzjqCLm,Chargeback Pipeline,ea3275b5-d6f9-49df-8f1e-ea919c344108,Pending Failed Payment Fix
+28,Argon Comm,2ywuxwHIghvbiTzjqCLm,Chargeback Pipeline,06b06785-c830-4a95-848d-4c91fc9d8e03,Pending Lapse
+28,Argon Comm,2ywuxwHIghvbiTzjqCLm,Chargeback Pipeline,faa61b24-d542-40e5-83e7-b514496a542a,Chargeback Failed Payment
+28,Argon Comm,2ywuxwHIghvbiTzjqCLm,Chargeback Pipeline,43cca428-d684-4ce6-afa1-5a8f702f3cf1,Chargeback Cancellation
+28,Argon Comm,2ywuxwHIghvbiTzjqCLm,Chargeback Pipeline,b903f7df-28db-47b0-88f1-7564fd107747,Pending Chargeback Fix
+28,Argon Comm,2ywuxwHIghvbiTzjqCLm,Chargeback Pipeline,3db81c94-613a-48e3-9b2c-96883f39b76e,Chargeback Fixed
+28,Argon Comm,2ywuxwHIghvbiTzjqCLm,Chargeback Pipeline,eedc50ef-fc33-413c-8377-26a4552f0ed8,Chargeback DQ
+28,Argon Comm,fDOQ2Y5KS3JnU2sHh7Gf,Customer Pipeline,22439f0d-f390-428f-8d3c-688a2815680e,Issued - Pending First Draft
+28,Argon Comm,fDOQ2Y5KS3JnU2sHh7Gf,Customer Pipeline,6c5d69b4-dfb6-474d-898a-f1988db44a20,Premium Paid - Commission Pending
+28,Argon Comm,fDOQ2Y5KS3JnU2sHh7Gf,Customer Pipeline,bba0c6f5-5660-4492-b23c-bb0c8ed44a7e,ACTIVE PLACED - Paid as Earned
+28,Argon Comm,fDOQ2Y5KS3JnU2sHh7Gf,Customer Pipeline,998ccd13-347e-4fc2-9992-8d4a3739b2e8,ACTIVE PLACED - Paid as Advanced
+28,Argon Comm,fDOQ2Y5KS3JnU2sHh7Gf,Customer Pipeline,e3b556a6-b9a1-412e-9a0e-ea7c0702df3f,ACTIVE - 3 Months +
+28,Argon Comm,fDOQ2Y5KS3JnU2sHh7Gf,Customer Pipeline,94f2b024-cfb6-4dbc-a1f5-7be270e9c202,ACTIVE - 6 months +
+28,Argon Comm,fDOQ2Y5KS3JnU2sHh7Gf,Customer Pipeline,d651838d-69a0-4f90-b5c0-7a4555a3a75d,ACTIVE - 9 months
+28,Argon Comm,fDOQ2Y5KS3JnU2sHh7Gf,Customer Pipeline,79a8805c-d32f-4829-9cae-e2089cce8f33,ACTIVE - Past Charge-Back Period
+28,Argon Comm,tcYYxXK4opBdWOa5JAFN,Transfer Portal,e11fb4b6-f17e-4837-9ab0-d9927a24bd5a,Transfer API
+28,Argon Comm,tcYYxXK4opBdWOa5JAFN,Transfer Portal,5d99b838-3736-4eb6-924e-cffb3478d0ca,Chargeback Fix API
+28,Argon Comm,tcYYxXK4opBdWOa5JAFN,Transfer Portal,ce90bb1e-acc8-4b2c-8209-d7a72584a29d,Incomplete Transfer
+28,Argon Comm,tcYYxXK4opBdWOa5JAFN,Transfer Portal,ecbc6569-0286-4ea0-af08-ed99e6dfeacb,Returned To Center - DQ
+28,Argon Comm,tcYYxXK4opBdWOa5JAFN,Transfer Portal,2200cb09-5a20-4e80-8382-a71ca3e31a42,Previously Sold BPO
+28,Argon Comm,tcYYxXK4opBdWOa5JAFN,Transfer Portal,78e65f5a-bfe2-4687-8d9a-44439f481b23,DQ'd Can't be sold
+28,Argon Comm,tcYYxXK4opBdWOa5JAFN,Transfer Portal,7660161b-18c2-464d-b6a9-33b08fa44a4f,Needs BPO Callback
+28,Argon Comm,tcYYxXK4opBdWOa5JAFN,Transfer Portal,789622ca-4e33-4528-9d3b-3eba182cb355,Application Withdrawn
+28,Argon Comm,tcYYxXK4opBdWOa5JAFN,Transfer Portal,9cb887cb-a29d-402d-9680-7e74aeafd534,Declined Underwriting
+28,Argon Comm,tcYYxXK4opBdWOa5JAFN,Transfer Portal,fbde53cc-13ae-436e-99bb-c369b9e59324,Pending Approval
+28,Argon Comm,tcYYxXK4opBdWOa5JAFN,Transfer Portal,14522693-cccf-4f22-bf9e-5e8c5df0bc88,Pending Manual Action
+29,Care Solutions,JwFTZtyeQPkYx7b16YpO,Chargeback Pipeline,0251658d-a9ec-4955-95a2-6116f6f932ef,FDPF Pending Reason
+29,Care Solutions,JwFTZtyeQPkYx7b16YpO,Chargeback Pipeline,9b055c11-1465-4015-99c8-ba903f8929a0,FDPF Insufficient Funds
+29,Care Solutions,JwFTZtyeQPkYx7b16YpO,Chargeback Pipeline,7da9614d-da0a-420c-8076-c1e4618fa222,FDPF Incorrect Banking Info
+29,Care Solutions,JwFTZtyeQPkYx7b16YpO,Chargeback Pipeline,81267bbf-3e0a-4a89-935e-685ae6751ae5,FDPF Unauthorized Draft
+29,Care Solutions,JwFTZtyeQPkYx7b16YpO,Chargeback Pipeline,181a6edc-8fa3-4b6c-8f15-af691c1245e5,Pending Failed Payment Fix
+29,Care Solutions,JwFTZtyeQPkYx7b16YpO,Chargeback Pipeline,1cf5ee44-8a86-4e88-afbf-654f4aa0dc22,Pending Lapse
+29,Care Solutions,JwFTZtyeQPkYx7b16YpO,Chargeback Pipeline,a63b32e0-cc25-4286-bb0f-4e00be597ca2,Chargeback Failed Payment
+29,Care Solutions,JwFTZtyeQPkYx7b16YpO,Chargeback Pipeline,6d1cb1fe-8706-47dd-8816-1f31b8e91457,Chargeback Cancellation
+29,Care Solutions,JwFTZtyeQPkYx7b16YpO,Chargeback Pipeline,1428a110-6785-4178-b1da-7b33e103712f,Pending Chargeback Fix
+29,Care Solutions,JwFTZtyeQPkYx7b16YpO,Chargeback Pipeline,90f7dda7-a1c3-4baa-8d4e-003b29fad5dc,Chargeback Fixed
+29,Care Solutions,JwFTZtyeQPkYx7b16YpO,Chargeback Pipeline,a8f071db-6974-4c21-a3bd-ccf3830d196d,Chargeback DQ
+29,Care Solutions,M85OME9Hn3XHmzc7tvNL,Customer Pipeline,ff13ed28-da3f-4f20-a203-cffa80a66805,Issued - Pending First Draft
+29,Care Solutions,M85OME9Hn3XHmzc7tvNL,Customer Pipeline,c44210ed-26db-479d-ac36-0821371aa60e,Premium Paid - Commission Pending
+29,Care Solutions,M85OME9Hn3XHmzc7tvNL,Customer Pipeline,827e9d90-b79b-40e6-9eff-4480264d5355,ACTIVE PLACED - Paid as Earned
+29,Care Solutions,M85OME9Hn3XHmzc7tvNL,Customer Pipeline,9d121192-19c5-482d-ae5e-636bdc0316e8,ACTIVE PLACED - Paid as Advanced
+29,Care Solutions,M85OME9Hn3XHmzc7tvNL,Customer Pipeline,7dd4ebf6-f102-4fc3-ab3d-20f3098e6a06,ACTIVE - 3 Months +
+29,Care Solutions,M85OME9Hn3XHmzc7tvNL,Customer Pipeline,55c15dd2-f946-4ee5-8a4e-d0646dffcebd,ACTIVE - 6 months +
+29,Care Solutions,M85OME9Hn3XHmzc7tvNL,Customer Pipeline,ca0bad95-36bd-42c9-91d4-97d7acea982e,ACTIVE - 9 months
+29,Care Solutions,M85OME9Hn3XHmzc7tvNL,Customer Pipeline,80075c99-187a-4996-b8e7-1c9b798fdfc0,ACTIVE - Past Charge-Back Period
+29,Care Solutions,xlNIYc5QDvwGGsijlvDm,Transfer Portal,c475c1d1-6104-4339-b4f4-26ab5744ab13,Transfer API
+29,Care Solutions,xlNIYc5QDvwGGsijlvDm,Transfer Portal,53c7c1ce-8d71-4b17-bbc3-91b426aa5f3e,Chargeback Fix API
+29,Care Solutions,xlNIYc5QDvwGGsijlvDm,Transfer Portal,0517af5d-0aa4-4b22-b97d-d009634c6b7a,Incomplete Transfer
+29,Care Solutions,xlNIYc5QDvwGGsijlvDm,Transfer Portal,0e845b7b-0312-43ca-8e54-86b34eee7ca6,Returned To Center - DQ
+29,Care Solutions,xlNIYc5QDvwGGsijlvDm,Transfer Portal,c1b6748e-0de1-4f61-a14d-c3487d556967,Previously Sold BPO
+29,Care Solutions,xlNIYc5QDvwGGsijlvDm,Transfer Portal,4048855c-5feb-4ff0-97ea-cc6fdd14eacb,DQ'd Can't be sold
+29,Care Solutions,xlNIYc5QDvwGGsijlvDm,Transfer Portal,073a622d-c2b5-4cd6-874a-29388774b0b3,Needs BPO Callback
+29,Care Solutions,xlNIYc5QDvwGGsijlvDm,Transfer Portal,1ffbb6cc-504e-4d03-9833-a1fe0321d564,Application Withdrawn
+29,Care Solutions,xlNIYc5QDvwGGsijlvDm,Transfer Portal,e7f308ac-9a3a-45b4-bd0a-8f34712d6da6,Declined Underwriting
+29,Care Solutions,xlNIYc5QDvwGGsijlvDm,Transfer Portal,2938a53f-5b72-4411-a159-0594b949202a,Pending Approval
+29,Care Solutions,xlNIYc5QDvwGGsijlvDm,Transfer Portal,d4fcb22d-5581-4af1-a549-c1221b9b7a8c,Pending Manual Action
+30,Cutting Edge,nVt6Vf6RBET9lvmb7XCI,Chargeback Pipeline,3bc228c9-f6be-4665-bd30-d8fe547d1798,FDPF Pending Reason
+30,Cutting Edge,nVt6Vf6RBET9lvmb7XCI,Chargeback Pipeline,017ca723-d845-4502-be06-4a5cbf0da236,FDPF Insufficient Funds
+30,Cutting Edge,nVt6Vf6RBET9lvmb7XCI,Chargeback Pipeline,6809fdb1-a74a-468d-8aa8-984c0d15d8ad,FDPF Incorrect Banking Info
+30,Cutting Edge,nVt6Vf6RBET9lvmb7XCI,Chargeback Pipeline,9ef03863-c7c5-4eba-a8ef-c2eb640cd72b,FDPF Unauthorized Draft
+30,Cutting Edge,nVt6Vf6RBET9lvmb7XCI,Chargeback Pipeline,b88655ce-6ea5-43be-be7a-86dbb341c292,Pending Failed Payment Fix
+30,Cutting Edge,nVt6Vf6RBET9lvmb7XCI,Chargeback Pipeline,61e534b0-740d-43f0-9157-fe724aefc8c4,Pending Lapse
+30,Cutting Edge,nVt6Vf6RBET9lvmb7XCI,Chargeback Pipeline,a0caf8e5-ca65-4d67-b7ad-885352dabda0,Chargeback Failed Payment
+30,Cutting Edge,nVt6Vf6RBET9lvmb7XCI,Chargeback Pipeline,70f845f1-6e91-42b0-985e-7dab1c3448d7,Chargeback Cancellation
+30,Cutting Edge,nVt6Vf6RBET9lvmb7XCI,Chargeback Pipeline,1cc6db83-036b-4ef4-af6e-4c7e167f91cf,Pending Chargeback Fix
+30,Cutting Edge,nVt6Vf6RBET9lvmb7XCI,Chargeback Pipeline,1474510d-385e-45cd-b292-339558a229b8,Chargeback Fixed
+30,Cutting Edge,nVt6Vf6RBET9lvmb7XCI,Chargeback Pipeline,0af185a4-4f35-40a0-beb2-1d3dca0fa63a,Chargeback DQ
+30,Cutting Edge,xJRWluf7mIyDbufGngjK,Customer Pipeline,103a07f3-73ad-414f-bade-f56d561af7fa,Issued - Pending First Draft
+30,Cutting Edge,xJRWluf7mIyDbufGngjK,Customer Pipeline,1d16e672-8f8b-40ac-8709-5f00abed7022,Premium Paid - Commission Pending
+30,Cutting Edge,xJRWluf7mIyDbufGngjK,Customer Pipeline,e59ff3f5-6df4-480d-8f1d-457693b5c1e2,ACTIVE PLACED - Paid as Earned
+30,Cutting Edge,xJRWluf7mIyDbufGngjK,Customer Pipeline,dff486f0-2fd1-489c-86e5-76ff2924e126,ACTIVE PLACED - Paid as Advanced
+30,Cutting Edge,xJRWluf7mIyDbufGngjK,Customer Pipeline,316af061-d301-4f96-b863-3375c50fc40d,ACTIVE - 3 Months +
+30,Cutting Edge,xJRWluf7mIyDbufGngjK,Customer Pipeline,eb4165c2-cf5f-45c1-bd4a-2a3c5d8c7e98,ACTIVE - 6 months +
+30,Cutting Edge,xJRWluf7mIyDbufGngjK,Customer Pipeline,51081e67-6492-432c-b7a5-94274964e82f,ACTIVE - 9 months
+30,Cutting Edge,xJRWluf7mIyDbufGngjK,Customer Pipeline,03ed7007-00b6-4655-a633-9adaaef5eb91,ACTIVE - Past Charge-Back Period
+30,Cutting Edge,9kU9S32OpgQ440sDxH7E,Transfer Portal,e8aa0fa8-04cd-4fad-9797-d32e51e96ef6,Transfer API
+30,Cutting Edge,9kU9S32OpgQ440sDxH7E,Transfer Portal,d4fb30d4-b65d-470a-b848-977d4c665b81,Chargeback Fix API
+30,Cutting Edge,9kU9S32OpgQ440sDxH7E,Transfer Portal,3a6c5d34-ed06-48b8-b247-24ec0d5bbd9b,Incomplete Transfer
+30,Cutting Edge,9kU9S32OpgQ440sDxH7E,Transfer Portal,d0728823-8bd5-4b5f-a71e-c2a16517ab9b,Returned To Center - DQ
+30,Cutting Edge,9kU9S32OpgQ440sDxH7E,Transfer Portal,f2c969b4-2fb3-4627-96d5-fd41713069c2,Previously Sold BPO
+30,Cutting Edge,9kU9S32OpgQ440sDxH7E,Transfer Portal,f7402a00-bde3-48ef-bf63-af8932b73376,DQ'd Can't be sold
+30,Cutting Edge,9kU9S32OpgQ440sDxH7E,Transfer Portal,3b53ae80-96e2-4743-a37f-7741bdda587e,Needs BPO Callback
+30,Cutting Edge,9kU9S32OpgQ440sDxH7E,Transfer Portal,20faefeb-152d-46e7-aa9f-72ecfb989a8b,Application Withdrawn
+30,Cutting Edge,9kU9S32OpgQ440sDxH7E,Transfer Portal,463ec76f-ec80-40f4-83de-56078504a7e8,Declined Underwriting
+30,Cutting Edge,9kU9S32OpgQ440sDxH7E,Transfer Portal,9781b0e2-6418-4263-afad-11ff250f601f,Pending Approval
+30,Cutting Edge,9kU9S32OpgQ440sDxH7E,Transfer Portal,4f652ad0-0a3d-4d93-9063-53ea9f63007d,Pending Manual Action
+31,Next Era,ePjUUTC8Y61RCdhmHf9Y,Chargeback Pipeline,53f8777b-6805-4145-b9b5-634f4cb15324,FDPF Pending Reason
+31,Next Era,ePjUUTC8Y61RCdhmHf9Y,Chargeback Pipeline,5cd0ba40-22c4-429a-be09-b1540bfe0e2b,FDPF Insufficient Funds
+31,Next Era,ePjUUTC8Y61RCdhmHf9Y,Chargeback Pipeline,bf227343-25bb-4c47-bb37-7d4f6d4455c4,FDPF Incorrect Banking Info
+31,Next Era,ePjUUTC8Y61RCdhmHf9Y,Chargeback Pipeline,bcf1d3ea-2b4c-4237-8649-b141c3a42bc8,FDPF Unauthorized Draft
+31,Next Era,ePjUUTC8Y61RCdhmHf9Y,Chargeback Pipeline,954f3e3c-8924-41b0-a927-0856b82c9918,Pending Failed Payment Fix
+31,Next Era,ePjUUTC8Y61RCdhmHf9Y,Chargeback Pipeline,7ec81599-e417-4d1f-986f-2ebc72fdc3b1,Pending Lapse
 31,Next Era,ePjUUTC8Y61RCdhmHf9Y,Chargeback Pipeline,6e38fcd0-b53c-420e-9618-ff2fda038279,Chargeback Failed Payment
 31,Next Era,ePjUUTC8Y61RCdhmHf9Y,Chargeback Pipeline,f1a551a9-d6eb-43bc-861e-baaeac0d4491,Chargeback Cancellation
+31,Next Era,ePjUUTC8Y61RCdhmHf9Y,Chargeback Pipeline,7f9c63a0-91cd-4902-b15e-0d8d56466ce1,Pending Chargeback Fix
+31,Next Era,ePjUUTC8Y61RCdhmHf9Y,Chargeback Pipeline,bc83500a-7214-4e64-9bda-a2bf062fc219,Chargeback Fixed
 31,Next Era,ePjUUTC8Y61RCdhmHf9Y,Chargeback Pipeline,85b2707a-82b9-4a36-a462-f0bac5c913c0,Chargeback DQ
-31,Next Era,zbnfMcldIKobOTjvI1Ex,Customer Pipeline,cf369d4a-867e-4be1-9021-0b62aa7dfb25,Chargeback Fix Form
-31,Next Era,zbnfMcldIKobOTjvI1Ex,Customer Pipeline,84de9d3b-84a4-4a8f-aac3-3df9d4d2dec4,Approved Customer - Not Paid
-31,Next Era,zbnfMcldIKobOTjvI1Ex,Customer Pipeline,9632f72a-2b0e-4f53-8d1c-3ef770215e18,First Draft Payment Failure
+31,Next Era,zbnfMcldIKobOTjvI1Ex,Customer Pipeline,bb080bd7-22f9-49a8-adea-223c9383f5e5,Issued - Pending First Draft
+31,Next Era,zbnfMcldIKobOTjvI1Ex,Customer Pipeline,84de9d3b-84a4-4a8f-aac3-3df9d4d2dec4,Premium Paid - Commission Pending
 31,Next Era,zbnfMcldIKobOTjvI1Ex,Customer Pipeline,733488aa-26a4-404c-a04f-1fd18de252ef,ACTIVE PLACED - Paid as Earned
 31,Next Era,zbnfMcldIKobOTjvI1Ex,Customer Pipeline,7b67e6ce-f9ca-4b5b-96f2-15f3f4196c8e,ACTIVE PLACED - Paid as Advanced
-31,Next Era,zbnfMcldIKobOTjvI1Ex,Customer Pipeline,36fd81a6-2b8d-40ba-ae8c-4b5ec03b898c,Pending Lapse
-31,Next Era,zbnfMcldIKobOTjvI1Ex,Customer Pipeline,8cc1adcc-2826-4744-9b24-f28d48417fc9,Charge-Back / Payment Failure
-31,Next Era,zbnfMcldIKobOTjvI1Ex,Customer Pipeline,4f062330-9f45-44d2-8058-98a112594aa5,Charged-Back / Canceled Policy
 31,Next Era,zbnfMcldIKobOTjvI1Ex,Customer Pipeline,90cd30fe-381f-4e4f-bf34-a21811899d9b,ACTIVE - 3 Months +
 31,Next Era,zbnfMcldIKobOTjvI1Ex,Customer Pipeline,a62b04b8-1f63-40a6-8fcb-bf705f7f07d0,ACTIVE - 6 months +
+31,Next Era,zbnfMcldIKobOTjvI1Ex,Customer Pipeline,5230a984-53e7-4b13-a680-4022a5d13686,ACTIVE - 9 months
 31,Next Era,zbnfMcldIKobOTjvI1Ex,Customer Pipeline,7abb5a0b-dfca-4509-8375-c9ea950970b2,ACTIVE - Past Charge-Back Period
-31,Next Era,zbnfMcldIKobOTjvI1Ex,Customer Pipeline,b63b64a6-46a2-49c8-a202-96e3032ffd42,Fixed Failed Payment
-31,Next Era,hOQyjsmcqGYdpnVGjzZt,Transfer Portal,a7a81979-d0e3-49d5-a4df-718ca1dfbdd4,Transfer Lead In
+31,Next Era,hOQyjsmcqGYdpnVGjzZt,Transfer Portal,a7a81979-d0e3-49d5-a4df-718ca1dfbdd4,Transfer API
+31,Next Era,hOQyjsmcqGYdpnVGjzZt,Transfer Portal,26af2b18-289f-43ed-a438-a9f0aeb786f0,Chargeback Fix API
 31,Next Era,hOQyjsmcqGYdpnVGjzZt,Transfer Portal,28f0c258-ec52-4823-9bda-f6328b6ffdaf,Incomplete Transfer
-31,Next Era,hOQyjsmcqGYdpnVGjzZt,Transfer Portal,5c4bdd76-31b2-4c8c-9238-e03d732f9095,Returned to Center
+31,Next Era,hOQyjsmcqGYdpnVGjzZt,Transfer Portal,5c4bdd76-31b2-4c8c-9238-e03d732f9095,Returned To Center - DQ
+31,Next Era,hOQyjsmcqGYdpnVGjzZt,Transfer Portal,1df8e9b9-4d43-4bdf-9622-95d2383e8105,Previously Sold BPO
 31,Next Era,hOQyjsmcqGYdpnVGjzZt,Transfer Portal,a9265f1f-54f2-4b16-b740-40aad858f3bf,DQ'd Can't be sold
-31,Next Era,hOQyjsmcqGYdpnVGjzZt,Transfer Portal,9b954c57-3e1f-462d-914c-043bf631c586,Needs to be Fixed
-31,Next Era,hOQyjsmcqGYdpnVGjzZt,Transfer Portal,7101bec8-0837-4258-84c4-68362b26775a,Needs Carrier Application
-31,Next Era,hOQyjsmcqGYdpnVGjzZt,Transfer Portal,2782cc51-9a14-415b-9a0d-5aa9e87ce2b1,Declined
+31,Next Era,hOQyjsmcqGYdpnVGjzZt,Transfer Portal,9b954c57-3e1f-462d-914c-043bf631c586,Needs BPO Callback
+31,Next Era,hOQyjsmcqGYdpnVGjzZt,Transfer Portal,7101bec8-0837-4258-84c4-68362b26775a,Application Withdrawn
+31,Next Era,hOQyjsmcqGYdpnVGjzZt,Transfer Portal,2782cc51-9a14-415b-9a0d-5aa9e87ce2b1,Declined Underwriting
 31,Next Era,hOQyjsmcqGYdpnVGjzZt,Transfer Portal,87336850-3e43-42de-9875-31edffc8f3c7,Pending Approval
+31,Next Era,hOQyjsmcqGYdpnVGjzZt,Transfer Portal,a9c6433d-0c50-4309-b0bf-67456103083b,Pending Manual Action
 33,Master Portal,aF8i8IA0MzH8DkbBbrgR,Chargeback Pipeline,79c5aa0e-1941-4841-b1a4-cb895a13d535,FDPF Pending Reason
 33,Master Portal,aF8i8IA0MzH8DkbBbrgR,Chargeback Pipeline,49a09589-f28e-4f14-bad2-ad57fc944509,FDPF Insufficient Funds
 33,Master Portal,aF8i8IA0MzH8DkbBbrgR,Chargeback Pipeline,89c03a61-fc05-4165-a711-3fad29bc2e20,FDPF Incorrect Banking Info
@@ -1101,3 +1153,33 @@ Account Id,Account Name,Pipeline Id,Pipeline Name,Stage Id,Stage Name
 48,Exito BPO,p1n0pQkULE1dn7lOYvd4,Transfer Portal,5d901905-1074-473b-818b-209cf974e200,Declined Underwriting
 48,Exito BPO,p1n0pQkULE1dn7lOYvd4,Transfer Portal,22461ea4-45be-48ed-9b62-6a4a6e44fefc,Pending Approval
 48,Exito BPO,p1n0pQkULE1dn7lOYvd4,Transfer Portal,971f2aaa-d781-4ee3-a6f2-e99bed153ef6,Pending Manual Action
+49,CrossNotch,TBJR1HyE9yatB74M0ZLg,Chargeback Pipeline,970370d1-9ac5-4791-883c-ac2546fca118,FDPF Pending Reason
+49,CrossNotch,TBJR1HyE9yatB74M0ZLg,Chargeback Pipeline,9805c53c-1d85-4bb9-9996-6dcfefc368b0,FDPF Insufficient Funds
+49,CrossNotch,TBJR1HyE9yatB74M0ZLg,Chargeback Pipeline,f4b71324-22c1-439c-95fb-adaacebbfea3,FDPF Incorrect Banking Info
+49,CrossNotch,TBJR1HyE9yatB74M0ZLg,Chargeback Pipeline,1f837961-0b5e-470d-8f14-aeb3812943bb,FDPF Unauthorized Draft
+49,CrossNotch,TBJR1HyE9yatB74M0ZLg,Chargeback Pipeline,fdf37cdf-e5f3-445b-8b14-bce654523ef7,Pending Failed Payment Fix
+49,CrossNotch,TBJR1HyE9yatB74M0ZLg,Chargeback Pipeline,56c10fe1-5854-4cc2-b69d-db0e3e8a8eaf,Pending Lapse
+49,CrossNotch,TBJR1HyE9yatB74M0ZLg,Chargeback Pipeline,cbebf0d7-7ae7-4c31-84a6-f44553abfb58,Chargeback Failed Payment
+49,CrossNotch,TBJR1HyE9yatB74M0ZLg,Chargeback Pipeline,2ebf137c-c000-480f-a921-fd2ab68edfa0,Chargeback Cancellation
+49,CrossNotch,TBJR1HyE9yatB74M0ZLg,Chargeback Pipeline,92387c0c-6cc4-4dbb-a8a7-370651ae69fe,Pending Chargeback Fix
+49,CrossNotch,TBJR1HyE9yatB74M0ZLg,Chargeback Pipeline,01a2471c-da37-45b2-9ba7-eed81250c80d,Chargeback Fixed
+49,CrossNotch,TBJR1HyE9yatB74M0ZLg,Chargeback Pipeline,fd039d5e-e934-4fff-b70f-4cd644386a12,Chargeback DQ
+49,CrossNotch,lnu4OewXTj7vEUe145za,Customer Pipeline,224cc00e-d5e8-4207-95dd-ab38966f8bbf,Issued - Pending First Draft
+49,CrossNotch,lnu4OewXTj7vEUe145za,Customer Pipeline,5b59fd29-1c1c-4339-9c2a-721134a67818,Premium Paid - Commission Pending
+49,CrossNotch,lnu4OewXTj7vEUe145za,Customer Pipeline,bedc04f6-d250-44e2-a781-120605a2375d,ACTIVE PLACED - Paid as Earned
+49,CrossNotch,lnu4OewXTj7vEUe145za,Customer Pipeline,f9863356-3d95-44a8-b25a-a9b04a861180,ACTIVE PLACED - Paid as Advanced
+49,CrossNotch,lnu4OewXTj7vEUe145za,Customer Pipeline,c8a7bc4e-3dab-4274-aa49-0f02f1c4cc6a,ACTIVE - 3 Months +
+49,CrossNotch,lnu4OewXTj7vEUe145za,Customer Pipeline,53068b27-018c-4611-b74f-f33a82057288,ACTIVE - 6 months +
+49,CrossNotch,lnu4OewXTj7vEUe145za,Customer Pipeline,05ce4749-fb35-4d86-a610-9d815a5d5458,ACTIVE - 9 months
+49,CrossNotch,lnu4OewXTj7vEUe145za,Customer Pipeline,08f28277-0538-4c6d-a321-ffbf91c366ec,ACTIVE - Past Charge-Back Period
+49,CrossNotch,oZyLA6Tv3v7dyUrwunDM,Transfer Portal,a65b54c1-0ac5-4f64-b08f-cb1f110d34c7,Transfer API
+49,CrossNotch,oZyLA6Tv3v7dyUrwunDM,Transfer Portal,7988357d-40cc-4591-b7bc-81440553c1f1,Chargeback Fix API
+49,CrossNotch,oZyLA6Tv3v7dyUrwunDM,Transfer Portal,e51cd566-d060-4f56-ab5a-c0569a6e4f13,Incomplete Transfer
+49,CrossNotch,oZyLA6Tv3v7dyUrwunDM,Transfer Portal,8bfa49c2-b076-4ae1-bafb-b4ef99ea24e1,Returned To Center - DQ
+49,CrossNotch,oZyLA6Tv3v7dyUrwunDM,Transfer Portal,3dc3e817-be8b-4cdf-ae01-b83c740e0196,Previously Sold BPO
+49,CrossNotch,oZyLA6Tv3v7dyUrwunDM,Transfer Portal,811ff92e-7bfe-48e6-8642-e995751c6159,DQ'd Can't be sold
+49,CrossNotch,oZyLA6Tv3v7dyUrwunDM,Transfer Portal,4b612493-4969-4a43-92d4-af61231fb10e,Needs BPO Callback
+49,CrossNotch,oZyLA6Tv3v7dyUrwunDM,Transfer Portal,d417f2f8-51a7-4819-bf78-732378e87d94,Application Withdrawn
+49,CrossNotch,oZyLA6Tv3v7dyUrwunDM,Transfer Portal,49ac338e-33e4-4538-8531-8626509fb47d,Declined Underwriting
+49,CrossNotch,oZyLA6Tv3v7dyUrwunDM,Transfer Portal,17739b2b-7b57-4685-a42e-841dff0626a9,Pending Approval
+49,CrossNotch,oZyLA6Tv3v7dyUrwunDM,Transfer Portal,8ab8d5b4-5b96-4cff-af62-9a2dea1cb3f1,Pending Manual Action

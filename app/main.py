@@ -55,6 +55,7 @@ def normalize_phone_number(phone: Optional[str]) -> Optional[str]:
 
 from app.routes.beneficiary_info import router as beneficiary_info_router
 from app.routes.export_ghl_opportunities import router as export_router
+from app.routes.export_ghl_opportunities_only import router as export_opportunities_only_router
 app = FastAPI()
 app.include_router(export_router)
 
@@ -84,6 +85,8 @@ async def startup_event():
             logger.info("No default database file found - users will need to upload one")
     except Exception as e:
         logger.error(f"Error loading default database on startup: {str(e)}")
+        # Don't crash the server if database loading fails
+        logger.info("Continuing startup despite database loading error")
 
 # Configure templates and static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -172,10 +175,15 @@ app.include_router(
     tags=["pipelines-stages"]
 )
 
-# Add beneficiary info API router
 app.include_router(
     beneficiary_info_router,
     tags=["beneficiary-info"]
+)
+
+# Add export opportunities only router
+app.include_router(
+    export_opportunities_only_router,
+    tags=["export-opportunities-only"]
 )
 @app.get("/beneficiary-info")
 async def beneficiary_info_page(request: Request):
@@ -281,15 +289,19 @@ async def lead_search_page(request: Request):
 async def ghl_export_page(request: Request):
     return templates.TemplateResponse("ghl_export.html", {"request": request})
 
+# GHL Opportunities Only Export page (Fast Export)
+@app.get("/ghl-opportunities-only-export")
+async def ghl_opportunities_only_export_page(request: Request):
+    return templates.TemplateResponse("ghl_opportunities_only_export.html", {"request": request})
+
+@app.post("/test-export")
+async def test_export():
+    """Test endpoint for export functionality"""
+    return {"message": "Test successful", "data": "This would be Excel data"}
+
 # API endpoint to return subaccounts as JSON
 from fastapi.responses import JSONResponse
 import os, json
-
-@app.get("/api/subaccounts")
-async def api_subaccounts():
-    subaccounts = json.loads(os.getenv('SUBACCOUNTS', '[]'))
-    # Return only id and name for dropdown
-    return JSONResponse([{'id': sub['id'], 'name': sub['name']} for sub in subaccounts])
 
 @app.post("/api/bulk-update-notes")
 async def bulk_update_notes_api(csvFile: UploadFile = File(...)):

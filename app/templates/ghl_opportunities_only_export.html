@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">GHL Opportunities Only Export</h2>
+    <div class="alert alert-info">
+        <strong>Fast Export:</strong> This export focuses only on opportunities data without fetching contact notes, making it significantly faster.
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form id="opportunities-export-form">
+                <div class="mb-3">
+                    <label class="form-label">Select Sub-Accounts (Centers)</label>
+                    <div id="subaccount-checkboxes" class="form-check">
+                        <!-- Checkboxes will be populated by JS -->
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Select Pipelines</label>
+                    <div id="pipeline-checkboxes" class="form-check">
+                        <!-- Pipeline checkboxes will be populated after subaccount selection -->
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="max-records" class="form-label">Max Records per Pipeline (for testing)</label>
+                    <input type="number" class="form-control" id="max-records" value="200" min="1" max="10000">
+                    <div class="form-text">Set to a high number or leave empty for full export</div>
+                </div>
+
+                <button type="button" class="btn btn-primary" id="export-btn">
+                    <i class="fas fa-download"></i> Export Opportunities
+                </button>
+            </form>
+
+            <div id="export-status" class="mt-3">
+                <div class="progress" id="progress-bar" style="display:none;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                </div>
+                <div id="status-text" class="mt-2"></div>
+                <div id="progress-details" class="mt-1 text-muted small"></div>
+            </div>
+
+            <div id="download-section" class="mt-3" style="display:none;">
+                <div class="alert alert-success">
+                    <h5>Export Complete!</h5>
+                    <p id="export-summary"></p>
+                    <a id="download-link" href="#" class="btn btn-success btn-lg" download>
+                        <i class="fas fa-file-excel"></i> Download Excel File
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let selectedSubaccounts = [];
+    let availablePipelines = {};
+
+    // Fetch subaccounts and populate checkboxes
+    fetch('/api/v1/subaccounts')
+        .then(res => res.json())
+        .then(subaccounts => {
+            const container = document.getElementById('subaccount-checkboxes');
+            subaccounts.forEach(sub => {
+                const div = document.createElement('div');
+                div.className = 'form-check';
+                const input = document.createElement('input');
+                input.type = 'checkbox';
+                input.className = 'form-check-input subaccount-checkbox';
+                input.id = 'sub_' + sub.id;
+                input.value = sub.id;
+                input.dataset.name = sub.name;
+                const label = document.createElement('label');
+                label.className = 'form-check-label';
+                label.htmlFor = input.id;
+                label.textContent = sub.name;
+                div.appendChild(input);
+                div.appendChild(label);
+                container.appendChild(div);
+
+                // Add change listener
+                input.addEventListener('change', handleSubaccountChange);
+            });
+        })
+        .catch(err => {
+            console.error('Failed to load subaccounts:', err);
+            document.getElementById('status-text').textContent = 'Error loading subaccounts. Please refresh the page.';
+        });
+
+    function handleSubaccountChange() {
+        selectedSubaccounts = Array.from(document.querySelectorAll('.subaccount-checkbox:checked')).map(cb => ({
+            id: cb.value,
+            name: cb.dataset.name
+        }));
+
+        if (selectedSubaccounts.length > 0) {
+            loadPipelinesForSubaccounts();
+        } else {
+            document.getElementById('pipeline-checkboxes').innerHTML = '';
+        }
+    }
+
+    function loadPipelinesForSubaccounts() {
+        const pipelineContainer = document.getElementById('pipeline-checkboxes');
+        pipelineContainer.innerHTML = '<div class="text-muted">Loading pipelines...</div>';
+
+        // Load pipelines for each selected subaccount
+        const promises = selectedSubaccounts.map(sub =>
+            fetch(`/api/v1/pipelines/${sub.id}`)
+                .then(res => res.json())
+                .then(pipelines => ({
+                    subaccount: sub,
+                    pipelines: pipelines
+                }))
+                .catch(err => {
+                    console.error(`Failed to load pipelines for ${sub.name}:`, err);
+                    return { subaccount: sub, pipelines: [] };
+                })
+        );
+
+        Promise.all(promises).then(results => {
+            availablePipelines = {};
+            pipelineContainer.innerHTML = '';
+
+            results.forEach(result => {
+                const { subaccount, pipelines } = result;
+
+                if (pipelines && pipelines.length > 0) {
+                    pipelines.forEach(pipeline => {
+                        const pipelineId = `${subaccount.id}_${pipeline.id}`;
+
+                        const div = document.createElement('div');
+                        div.className = 'form-check';
+                        const input = document.createElement('input');
+                        input.type = 'checkbox';
+                        input.className = 'form-check-input pipeline-checkbox';
+                        input.id = 'pipe_' + pipelineId;
+                        input.value = pipeline.id;
+                        input.dataset.subaccountId = subaccount.id;
+                        input.dataset.subaccountName = subaccount.name;
+                        input.dataset.pipelineName = pipeline.name;
+
+                        const label = document.createElement('label');
+                        label.className = 'form-check-label';
+                        label.htmlFor = input.id;
+                        label.textContent = `${pipeline.name} (${subaccount.name})`;
+
+                        div.appendChild(input);
+                        div.appendChild(label);
+                        pipelineContainer.appendChild(div);
+
+                        availablePipelines[pipelineId] = {
+                            subaccount_id: subaccount.id,
+                            pipeline_id: pipeline.id,
+                            pipeline_name: pipeline.name,
+                            subaccount_name: subaccount.name
+                        };
+                    });
+                }
+            });
+
+            if (pipelineContainer.children.length === 0) {
+                pipelineContainer.innerHTML = '<div class="text-muted">No pipelines found for selected subaccounts.</div>';
+            }
+        });
+    }
+
+    // Handle Export button click
+    document.getElementById('export-btn').addEventListener('click', function() {
+        const selectedPipelines = Array.from(document.querySelectorAll('.pipeline-checkbox:checked'));
+        const maxRecords = document.getElementById('max-records').value;
+
+        const statusText = document.getElementById('status-text');
+        const progressDetails = document.getElementById('progress-details');
+        const progressBar = document.getElementById('progress-bar');
+        const progressBarInner = progressBar.querySelector('.progress-bar');
+        const btn = document.getElementById('export-btn');
+        const downloadSection = document.getElementById('download-section');
+
+        // Reset UI
+        statusText.textContent = '';
+        progressDetails.textContent = '';
+        progressBar.style.display = 'none';
+        downloadSection.style.display = 'none';
+
+        if (selectedPipelines.length === 0) {
+            statusText.textContent = 'Please select at least one pipeline.';
+            statusText.className = 'text-danger';
+            return;
+        }
+
+        // Group pipelines by subaccount
+        const exportRequest = {
+            selections: []
+        };
+
+        const subaccountGroups = {};
+        selectedPipelines.forEach(cb => {
+            const subaccountId = cb.dataset.subaccountId;
+            const pipelineId = cb.value;
+
+            if (!subaccountGroups[subaccountId]) {
+                subaccountGroups[subaccountId] = {
+                    account_id: subaccountId,
+                    pipelines: []
+                };
+            }
+            subaccountGroups[subaccountId].pipelines.push(pipelineId);
+        });
+
+        // Convert to array
+        exportRequest.selections = Object.values(subaccountGroups);
+
+        // Validate we have selections
+        if (exportRequest.selections.length === 0) {
+            statusText.textContent = 'No valid selections found. Please check subaccount setup.';
+            statusText.className = 'text-danger';
+            return;
+        }
+
+        // Disable button and start export
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting Export...';
+        progressBar.style.display = 'block';
+        progressBarInner.style.width = '0%';
+        statusText.textContent = 'Preparing export request...';
+        statusText.className = 'text-info';
+
+        // Make the export request
+        fetch('/api/v1/automation/export-opportunities-only', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(exportRequest)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            // Create download link
+            const url = window.URL.createObjectURL(blob);
+            const downloadLink = document.getElementById('download-link');
+            downloadLink.href = url;
+            downloadLink.download = `GHL_Opportunities_Only_Export_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+            // Update UI
+            progressBar.style.display = 'none';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-download"></i> Export Opportunities';
+
+            const exportSummary = document.getElementById('export-summary');
+            exportSummary.textContent = `Successfully exported opportunities from ${selectedPipelines.length} pipeline(s) across ${exportRequest.selections.length} subaccount(s).`;
+
+            downloadSection.style.display = 'block';
+            statusText.textContent = 'Export completed successfully!';
+            statusText.className = 'text-success';
+        })
+        .catch(err => {
+            console.error('Export error:', err);
+            statusText.textContent = `Export failed: ${err.message}`;
+            statusText.className = 'text-danger';
+            progressBar.style.display = 'none';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-download"></i> Export Opportunities';
+        });
+    });
+});
+</script>
+{% endblock %}

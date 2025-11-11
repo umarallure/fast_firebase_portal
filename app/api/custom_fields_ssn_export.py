@@ -21,23 +21,25 @@ async def custom_fields_ssn_export_page(request: Request):
 
 @router.get("/api/custom-fields-ssn-export/accounts")
 async def get_available_accounts():
-    """Get list of available accounts for SSN export - restricted to account 33 only"""
+    """Get list of all available accounts for SSN export"""
     try:
         accounts = []
         for subaccount in settings.subaccounts_list:
-            # Only include account 33
-            if str(subaccount.get('id')) == '33':
-                accounts.append({
-                    "id": subaccount.get('id'),
-                    "name": subaccount.get('name'),
-                    "location_id": subaccount.get('location_id'),
-                    "has_access_token": bool(subaccount.get('access_token')),
-                    "has_api_key": bool(subaccount.get('api_key'))
-                })
+            # Include all subaccounts
+            accounts.append({
+                "id": subaccount.get('id'),
+                "name": subaccount.get('name'),
+                "location_id": subaccount.get('location_id'),
+                "has_access_token": bool(subaccount.get('access_token')),
+                "has_api_key": bool(subaccount.get('api_key'))
+            })
+        
+        logger.info(f"Retrieved {len(accounts)} available accounts for SSN export")
         
         return JSONResponse({
             "success": True,
-            "accounts": accounts
+            "accounts": accounts,
+            "total_accounts": len(accounts)
         })
         
     except Exception as e:

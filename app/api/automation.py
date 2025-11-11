@@ -2,7 +2,7 @@ from fastapi import APIRouter, status, HTTPException, Response
 from fastapi.responses import StreamingResponse, JSONResponse
 from app.models.schemas import ExportRequest
 from app.services.excel_writer import generate_excel
-from app.services.ghl_export import process_export_request
+from app.services.ghl_export_new import process_export_request
 import logging
 import os
 import json
@@ -56,4 +56,19 @@ async def trigger_export(export_request: ExportRequest):
         content=excel_bytes,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=GHL_Opportunities_Export.xlsx"}
+    )
+
+@router.post(
+    "/automation/export-opportunities-only",
+    status_code=status.HTTP_200_OK,
+    summary="Trigger GHL opportunities-only export (no notes)",
+    response_class=StreamingResponse
+)
+async def trigger_opportunities_only_export(export_request: ExportRequest):
+    """Export opportunities without fetching notes for faster processing"""
+    excel_bytes = await process_export_request(export_request)
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=GHL_Opportunities_Only_Export.xlsx"}
     )
