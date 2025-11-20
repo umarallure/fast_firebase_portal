@@ -7,6 +7,7 @@ class SelectionSchema(BaseModel):
 
 class ExportRequest(BaseModel):
     selections: List[SelectionSchema]
+    max_records: Optional[int] = None
 
 # Migration Schemas
 class MigrationRequest(BaseModel):

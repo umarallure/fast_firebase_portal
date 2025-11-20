@@ -185,6 +185,13 @@ app.include_router(
     export_opportunities_only_router,
     tags=["export-opportunities-only"]
 )
+
+# Add new API export router
+from app.routes.export_ghl_opportunities_new_api import router as export_new_api_router
+app.include_router(
+    export_new_api_router,
+    tags=["export-opportunities-new-api"]
+)
 @app.get("/beneficiary-info")
 async def beneficiary_info_page(request: Request):
     return templates.TemplateResponse("beneficiary_info.html", {"request": request})
@@ -251,6 +258,32 @@ async def get_pipelines_for_subaccount(sub_id: str):
             logging.error(f"Failed to fetch pipelines for subaccount {sub_id}: {e}")
             return []
 
+@app.get("/api/subaccounts/{sub_id}/pipelines-new-api")
+async def get_pipelines_for_subaccount_new_api(sub_id: str):
+    """Get pipelines using the new LeadConnectorHQ API"""
+    subaccounts = settings.subaccounts_list
+    sub = next((s for s in subaccounts if str(s.get("id")) == str(sub_id)), None)
+    if not sub or not sub.get("access_token") or not sub.get("location_id"):
+        return []
+    access_token = sub["access_token"]
+    location_id = sub["location_id"]
+    url = f"https://services.leadconnectorhq.com/opportunities/pipelines?locationId={location_id}"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json",
+        "Version": "2021-07-28"
+    }
+    async with httpx.AsyncClient(timeout=settings.ghl_api_timeout) as client:
+        try:
+            resp = await client.get(url, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("pipelines", [])
+        except Exception as e:
+            # Log the error and return an empty list instead of raising
+            logging.error(f"Failed to fetch pipelines for subaccount {sub_id} using new API: {e}")
+            return []
+
 @app.get("/bulk-update-notes")
 async def bulk_update_notes_page(request: Request):
     return templates.TemplateResponse("bulk_update_notes.html", {"request": request})
@@ -293,6 +326,11 @@ async def ghl_export_page(request: Request):
 @app.get("/ghl-opportunities-only-export")
 async def ghl_opportunities_only_export_page(request: Request):
     return templates.TemplateResponse("ghl_opportunities_only_export.html", {"request": request})
+
+# GHL Opportunities New API Export page
+@app.get("/ghl-opportunities-new-api-export")
+async def ghl_opportunities_new_api_export_page(request: Request):
+    return templates.TemplateResponse("ghl_opportunities_new_api_export.html", {"request": request})
 
 @app.post("/test-export")
 async def test_export():

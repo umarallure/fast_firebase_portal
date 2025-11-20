@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script>
+if (!window.firebase) {
+    // Load Firebase if not already loaded
+    var script1 = document.createElement('script');
+    script1.src = "https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js";
+    document.head.appendChild(script1);
+    var script2 = document.createElement('script');
+    script2.src = "https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js";
+    document.head.appendChild(script2);
+}
+document.addEventListener('DOMContentLoaded', function() {
+    // Hide content until auth is checked
+    document.getElementById('content').style.display = 'none';
+    function checkAuth() {
+        if (!window.firebase || !firebase.auth) {
+            setTimeout(checkAuth, 100);
+            return;
+        }
+        const firebaseConfig = {
+            apiKey: "AIzaSyASVU8LlpqQ4Dpc-BSSfxyRbsCXJtgjKy4",
+            authDomain: "automation-portal-7a891.firebaseapp.com",
+            databaseURL: "https://automation-portal-7a891.firebaseio.com",
+            projectId: "automation-portal-7a891",
+            storageBucket: "automation-portal-7a891.appspot.com",
+            messagingSenderId: "850682394607",
+            appId: "1:850682394607:web:e42c2edd1ed536a64f281a"
+        };
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        firebase.auth().onAuthStateChanged(function(user) {
+            if (!user) {
+                window.location.href = "/login";
+            } else {
+                document.getElementById('content').style.display = '';
+                loadSubaccounts();
+            }
+        });
+    }
+    checkAuth();
+});
+
+async function loadSubaccounts() {
+    try {
+        const response = await fetch('/api/subaccounts');
+        const subaccounts = await response.json();
+
+        const container = document.getElementById('subaccount-selection');
+        container.innerHTML = '';
+
+        for (const subaccount of subaccounts) {
+            const card = document.createElement('div');
+            card.className = 'col-md-6 mb-3';
+            card.innerHTML = `
+                <div class="card">
+                    <div class="card-body">
+                        <div class="form-check">
+                            <input class="form-check-input subaccount-checkbox" type="checkbox"
+                                   value="${subaccount.id}" id="subaccount-${subaccount.id}">
+                            <label class="form-check-label" for="subaccount-${subaccount.id}">
+                                <strong>${subaccount.name}</strong>
+                                <br><small class="text-muted">ID: ${subaccount.id}</small>
+                            </label>
+                        </div>
+                        <div class="pipeline-selection mt-3" id="pipelines-${subaccount.id}" style="display: none;">
+                            <h6>Select Pipelines:</h6>
+                            <div class="pipeline-list" id="pipeline-list-${subaccount.id}">
+                                <div class="text-muted">Loading pipelines...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+
+            // Add event listener for checkbox
+            const checkbox = card.querySelector('.subaccount-checkbox');
+            checkbox.addEventListener('change', function() {
+                togglePipelineSelection(subaccount.id, this.checked);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading subaccounts:', error);
+        document.getElementById('subaccount-selection').innerHTML =
+            '<div class="alert alert-danger">Error loading subaccounts</div>';
+    }
+}
+
+async function togglePipelineSelection(subaccountId, show) {
+    const pipelineDiv = document.getElementById(`pipelines-${subaccountId}`);
+    if (show) {
+        pipelineDiv.style.display = 'block';
+        await loadPipelines(subaccountId);
+    } else {
+        pipelineDiv.style.display = 'none';
+        // Reset select all checkbox when hiding
+        const selectAllCheckbox = document.getElementById(`select-all-${subaccountId}`);
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = false;
+        }
+    }
+}
+
+async function loadPipelines(subaccountId) {
+    try {
+        const response = await fetch(`/api/subaccounts/${subaccountId}/pipelines-new-api`);
+        const pipelines = await response.json();
+
+        const container = document.getElementById(`pipeline-list-${subaccountId}`);
+        container.innerHTML = '';
+
+        if (pipelines.length === 0) {
+            container.innerHTML = '<div class="text-muted">No pipelines found</div>';
+            return;
+        }
+
+        // Add "Select All Pipelines" checkbox
+        const selectAllDiv = document.createElement('div');
+        selectAllDiv.className = 'form-check mb-2';
+        selectAllDiv.innerHTML = `
+            <input class="form-check-input select-all-pipelines" type="checkbox"
+                   id="select-all-${subaccountId}" data-subaccount="${subaccountId}">
+            <label class="form-check-label fw-bold" for="select-all-${subaccountId}">
+                <small>Select All Pipelines</small>
+            </label>
+        `;
+        container.appendChild(selectAllDiv);
+
+        // Add event listener for select all checkbox
+        const selectAllCheckbox = selectAllDiv.querySelector('.select-all-pipelines');
+        selectAllCheckbox.addEventListener('change', function() {
+            toggleAllPipelines(subaccountId, this.checked);
+        });
+
+        for (const pipeline of pipelines) {
+            const pipelineDiv = document.createElement('div');
+            pipelineDiv.className = 'form-check ms-3';
+            pipelineDiv.innerHTML = `
+                <input class="form-check-input pipeline-checkbox" type="checkbox"
+                       value="${pipeline.id}" id="pipeline-${subaccountId}-${pipeline.id}"
+                       data-subaccount="${subaccountId}">
+                <label class="form-check-label" for="pipeline-${subaccountId}-${pipeline.id}">
+                    ${pipeline.name}
+                </label>
+            `;
+            container.appendChild(pipelineDiv);
+        }
+    } catch (error) {
+        console.error('Error loading pipelines:', error);
+        document.getElementById(`pipeline-list-${subaccountId}`).innerHTML =
+            '<div class="alert alert-danger">Error loading pipelines</div>';
+    }
+}
+
+function toggleAllPipelines(subaccountId, selectAll) {
+    const pipelineCheckboxes = document.querySelectorAll(`.pipeline-checkbox[data-subaccount="${subaccountId}"]`);
+    pipelineCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAll;
+    });
+}
+
+async function toggleBulkSelect() {
+    const bulkSelectBtn = document.getElementById('bulkSelectBtn');
+    const isSelectingAll = bulkSelectBtn.innerHTML.includes('Select All');
+
+    if (isSelectingAll) {
+        // Select all subaccounts and their pipelines
+        bulkSelectBtn.innerHTML = '<i class="fas fa-square"></i> Deselect All';
+        bulkSelectBtn.className = 'btn btn-outline-danger btn-sm';
+
+        const subaccountCheckboxes = document.querySelectorAll('.subaccount-checkbox');
+        for (const checkbox of subaccountCheckboxes) {
+            if (!checkbox.checked) {
+                checkbox.checked = true;
+                await togglePipelineSelection(checkbox.value, true);
+                // Auto-select all pipelines for newly selected subaccounts
+                setTimeout(() => {
+                    const selectAllCheckbox = document.getElementById(`select-all-${checkbox.value}`);
+                    if (selectAllCheckbox) {
+                        selectAllCheckbox.checked = true;
+                        toggleAllPipelines(checkbox.value, true);
+                    }
+                }, 100);
+            } else {
+                // For already selected subaccounts, just select all their pipelines
+                const selectAllCheckbox = document.getElementById(`select-all-${checkbox.value}`);
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.checked = true;
+                    toggleAllPipelines(checkbox.value, true);
+                }
+            }
+        }
+    } else {
+        // Deselect all
+        bulkSelectBtn.innerHTML = '<i class="fas fa-check-square"></i> Select All';
+        bulkSelectBtn.className = 'btn btn-outline-primary btn-sm';
+
+        const subaccountCheckboxes = document.querySelectorAll('.subaccount-checkbox');
+        subaccountCheckboxes.forEach(checkbox => {
+            checkbox.checked = false;
+            togglePipelineSelection(checkbox.value, false);
+        });
+    }
+}
+
+async function startExport() {
+    const selectedSubaccounts = document.querySelectorAll('.subaccount-checkbox:checked');
+    if (selectedSubaccounts.length === 0) {
+        alert('Please select at least one subaccount');
+        return;
+    }
+
+    const selections = [];
+    let hasSelections = false;
+
+    for (const subaccountCheckbox of selectedSubaccounts) {
+        const subaccountId = subaccountCheckbox.value;
+        const pipelineCheckboxes = document.querySelectorAll(`.pipeline-checkbox[data-subaccount="${subaccountId}"]:checked`);
+
+        if (pipelineCheckboxes.length > 0) {
+            hasSelections = true;
+            const pipelineIds = Array.from(pipelineCheckboxes).map(cb => cb.value);
+            selections.push({
+                account_id: subaccountId,
+                pipelines: pipelineIds
+            });
+        }
+    }
+
+    if (!hasSelections) {
+        alert('Please select at least one pipeline for your selected subaccounts');
+        return;
+    }
+
+    const maxRecords = document.getElementById('maxRecords').value;
+    const exportRequest = {
+        selections: selections,
+        max_records: maxRecords ? parseInt(maxRecords) : null
+    };
+
+    // Show loading
+    const exportBtn = document.getElementById('exportBtn');
+    const originalText = exportBtn.innerHTML;
+    exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+    exportBtn.disabled = true;
+
+    try {
+        const response = await fetch('/export-opportunities-new-api', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(exportRequest)
+        });
+
+        if (response.ok) {
+            // Trigger download
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'GHL_Opportunities_New_API_Export.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            alert('Export completed successfully!');
+        } else {
+            const error = await response.text();
+            alert('Export failed: ' + error);
+        }
+    } catch (error) {
+        console.error('Export error:', error);
+        alert('Export failed: ' + error.message);
+    } finally {
+        // Reset button
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
+    }
+}
+</script>
+
+<div id="content">
+    <div class="container-fluid">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2><i class="fas fa-download text-primary"></i> GHL Opportunities Export (New API)</h2>
+                        <p class="text-muted">Export opportunities using the new LeadConnectorHQ APIs with location_id parameter</p>
+                    </div>
+                    <a href="/dashboard" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-cogs"></i> Export Configuration</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="maxRecords" class="form-label">Max Records per Pipeline (optional)</label>
+                                <input type="number" class="form-control" id="maxRecords" placeholder="Leave empty for all records">
+                                <div class="form-text">Limit the number of opportunities exported per pipeline</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-info-circle"></i> API Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2"><strong>Base URL:</strong> services.leadconnectorhq.com</p>
+                        <p class="mb-2"><strong>Pipelines:</strong> /opportunities/pipelines</p>
+                        <p class="mb-2"><strong>Opportunities:</strong> /opportunities/search</p>
+                        <p class="mb-0"><strong>Notes:</strong> Included in search response</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-building"></i> Select Subaccounts & Pipelines</h5>
+                <button id="bulkSelectBtn" class="btn btn-outline-primary btn-sm" onclick="toggleBulkSelect()">
+                    <i class="fas fa-check-square"></i> Select All
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="subaccount-selection" class="row">
+                    <div class="col-12">
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="sr-only">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading subaccounts...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-12 text-center">
+                <button id="exportBtn" class="btn btn-success btn-lg" onclick="startExport()">
+                    <i class="fas fa-download"></i> Start Export
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
