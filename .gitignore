@@ -27,3 +27,13 @@ Thumbs.db
 
 # Local static/media
 app/static/uploads/
+
+kixie-recorder-deploy/
+config.ini
+*.json
+
+# Local secrets and config
+config.ini
+token.json
+client_secret_*.json
+kixie-recorder-deploy/
