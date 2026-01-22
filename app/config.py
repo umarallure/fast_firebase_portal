@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     firebase_private_key: str
     firebase_client_email: str
     ghl_api_timeout: int = 30
-    max_concurrent_requests: int = 10
+    max_concurrent_requests: int = 3
     subaccounts: str = "[]"
     
     # GHL Migration settings

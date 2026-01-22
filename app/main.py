@@ -192,6 +192,13 @@ app.include_router(
     export_new_api_router,
     tags=["export-opportunities-new-api"]
 )
+
+# Add custom fields export router
+from app.routes.export_ghl_opportunities_with_custom_fields import router as export_custom_fields_router
+app.include_router(
+    export_custom_fields_router,
+    tags=["export-opportunities-with-custom-fields"]
+)
 @app.get("/beneficiary-info")
 async def beneficiary_info_page(request: Request):
     return templates.TemplateResponse("beneficiary_info.html", {"request": request})
@@ -331,6 +338,11 @@ async def ghl_opportunities_only_export_page(request: Request):
 @app.get("/ghl-opportunities-new-api-export")
 async def ghl_opportunities_new_api_export_page(request: Request):
     return templates.TemplateResponse("ghl_opportunities_new_api_export.html", {"request": request})
+
+# GHL Opportunities With Custom Fields Export page
+@app.get("/ghl-opportunities-with-custom-fields")
+async def ghl_opportunities_with_custom_fields_page(request: Request):
+    return templates.TemplateResponse("ghl_opportunities_with_custom_fields.html", {"request": request})
 
 @app.post("/test-export")
 async def test_export():

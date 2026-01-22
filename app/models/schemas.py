@@ -58,3 +58,8 @@ class PipelineMigrationData(BaseModel):
     id: str
     name: str
     stages: List[Dict[str, Any]]
+
+class ExportRequestWithCustomFields(BaseModel):
+    selections: List[SelectionSchema]
+    max_records: Optional[int] = None
+    custom_field_mapping: Dict[str, str] = {}

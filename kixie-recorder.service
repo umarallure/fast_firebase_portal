@@ -1,0 +1,14 @@
+[Unit]
+Description=Kixie Recording Uploader
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/home/YOUR_USERNAME/kixie-recorder
+ExecStart=/home/YOUR_USERNAME/kixie-recorder/venv/bin/python /home/YOUR_USERNAME/kixie-recorder/upload_recordings.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

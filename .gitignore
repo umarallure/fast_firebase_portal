@@ -27,3 +27,8 @@ Thumbs.db
 
 # Local static/media
 app/static/uploads/
+
+kixie-recorder-deploy/credentials/
+kixie-recorder-deploy/config.ini
+config.ini
+*.json
