@@ -350,9 +350,9 @@ async def bulk_update_notes_api(csvFile: UploadFile = File(...)):
         rows = list(reader)
         if not rows:
             return {"success": False, "message": "CSV is empty or invalid."}
-        # Prepare subaccount API keys
+        # Prepare subaccount Access Tokens
         subaccounts = settings.subaccounts_list
-        account_api_keys = {str(s['id']): s['api_key'] for s in subaccounts if s.get('api_key')}
+        account_access_tokens = {str(s['id']): s['access_token'] for s in subaccounts if s.get('access_token')}
         errors = []
         success_count = 0
         async with httpx.AsyncClient(timeout=30) as client:
@@ -360,20 +360,26 @@ async def bulk_update_notes_api(csvFile: UploadFile = File(...)):
                 contact_id = row.get('Contact ID')
                 notes = row.get('Notes')
                 account_id = str(row.get('Account Id'))
-                api_key = account_api_keys.get(account_id)
-                # Skip if contact_id or api_key is missing; skip if notes is empty or None
-                if not contact_id or not api_key:
-                    errors.append(f"Missing data for contact {contact_id}")
+                access_token = account_access_tokens.get(account_id)
+                # Skip if contact_id or access_token is missing; skip if notes is empty or None
+                if not contact_id or not access_token:
+                    errors.append(f"Missing data or access token for contact {contact_id}")
                     continue
                 if not notes or not notes.strip():
                     # Skip contacts with empty notes, but do not log as error
                     continue
-                url = f"https://rest.gohighlevel.com/v1/contacts/{contact_id}/notes/"
+                
+                # New V2 API Endpoint
+                url = f"https://services.leadconnectorhq.com/contacts/{contact_id}/notes"
                 payload = {"body": notes}
-                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                headers = {
+                    "Authorization": f"Bearer {access_token}", 
+                    "Content-Type": "application/json",
+                    "Version": "2021-07-28"
+                }
                 try:
                     resp = await client.post(url, json=payload, headers=headers)
-                    if resp.status_code == 200:
+                    if resp.status_code in (200, 201):
                         success_count += 1
                     else:
                         errors.append(f"Failed for {contact_id}: {resp.text}")
