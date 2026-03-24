@@ -91,11 +91,9 @@ async def startup_event():
 # Configure templates and static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Create templates with caching disabled to fix production error
-from jinja2 import Environment, FileSystemBytecodeCache
-templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
-templates.env.bytecode_cache = None
-templates.env.cache = None
+# Create templates
+template_dir = os.path.join(os.path.dirname(__file__), "templates")
+templates = Jinja2Templates(directory=template_dir)
 
 # CORS configuration
 app.add_middleware(

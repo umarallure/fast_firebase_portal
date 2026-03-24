@@ -1,7 +1,8 @@
-fastapi
+fastapi>=0.109.0
 uvicorn
 httpx
-jinja2
+jinja2>=3.1.0
+starlette>=0.35.0
 python-dotenv
 pydantic
 python-multipart
