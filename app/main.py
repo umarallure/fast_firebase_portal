@@ -91,6 +91,7 @@ async def startup_event():
 # Configure templates and static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+templates.env.cache = {}
 
 # CORS configuration
 app.add_middleware(
