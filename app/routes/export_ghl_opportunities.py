@@ -8,14 +8,13 @@ from dotenv import load_dotenv
 from io import StringIO
 import asyncio
 import uuid
-from typing import Dict
+from typing import Dict, Optional
 import time
+from datetime import datetime
+from app.config import settings
 
 load_dotenv()
 router = APIRouter()
-
-# Load subaccounts from .env
-SUBACCOUNTS = json.loads(os.getenv('SUBACCOUNTS', '[]'))
 
 # Global progress tracking with timestamps
 progress_store: Dict[str, Dict] = {}
@@ -27,53 +26,185 @@ CSV_COLUMNS = [
     'note1', 'note2', 'note3', 'note4'
 ]
 
-async def fetch_notes(client, contact_id, api_key):
-    """Fetch latest 4 notes for a contact asynchronously with retry logic."""
-    if not contact_id:
-        return ['', '', '', '']
+class GHLClientV2:
+    """GHL API V2 Client using LeadConnectorHQ endpoints"""
     
-    max_retries = 3
-    for attempt in range(max_retries):
+    def __init__(self, access_token: str, location_id: str):
+        self.base_url = "https://services.leadconnectorhq.com"
+        self.access_token = access_token
+        self.location_id = location_id
+        self.headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json",
+            "Version": "2021-07-28"
+        }
+        self.timeout = settings.ghl_api_timeout
+    
+    async def get_pipelines(self, client: httpx.AsyncClient) -> list:
+        """Fetch all pipelines for the location using V2 API"""
         try:
-            url = f'https://rest.gohighlevel.com/v1/contacts/{contact_id}/notes/'
-            headers = {'Authorization': f'Bearer {api_key}'}
-            resp = await client.get(url, headers=headers)
-            
-            if resp.status_code == 429:
-                # Rate limited - wait with exponential backoff
-                wait_time = 2 ** attempt
-                print(f"DEBUG: Rate limited fetching notes for {contact_id}, attempt {attempt + 1}, waiting {wait_time}s...")
-                await asyncio.sleep(wait_time)
-                continue
-            elif resp.status_code == 200:
-                notes_data = resp.json().get('notes', [])
-                notes_sorted = sorted(notes_data, key=lambda n: n.get('createdAt', ''), reverse=True)
-                notes_list = [n.get('body', '') for n in notes_sorted[:4]]
-                while len(notes_list) < 4:
-                    notes_list.append('')
-                return notes_list
-            else:
-                print(f"DEBUG: Error {resp.status_code} fetching notes for {contact_id}: {resp.text}")
-                return ['', '', '', '']
-        except Exception as e:
-            print(f"Error fetching notes for {contact_id}: {e}")
-            if attempt < max_retries - 1:
-                wait_time = 2 ** attempt
-                await asyncio.sleep(wait_time)
-                continue
-            return ['', '', '', '']
+            url = f"{self.base_url}/opportunities/pipelines?locationId={self.location_id}"
+            response = await client.get(url, headers=self.headers, timeout=self.timeout)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("pipelines", [])
+        except httpx.HTTPError as e:
+            print(f"DEBUG: Error fetching pipelines for location {self.location_id}: {e}")
+            return []
     
-    return ['', '', '', '']
+    async def search_opportunities(
+        self, 
+        client: httpx.AsyncClient, 
+        pipeline_id: str = None,
+        pipeline_stage_id: str = None
+    ) -> list:
+        """Search opportunities using V2 API - includes notes!"""
+        all_opportunities = []
+        page = 1
+        limit = 100
+        
+        while True:
+            try:
+                # Build URL with search parameters
+                url = f"{self.base_url}/opportunities/search?location_id={self.location_id}&limit={limit}&page={page}"
+                
+                if pipeline_id:
+                    url += f"&pipeline_id={pipeline_id}"
+                if pipeline_stage_id:
+                    url += f"&pipeline_stage_id={pipeline_stage_id}"
+                
+                response = await client.get(url, headers=self.headers, timeout=self.timeout)
+                
+                if response.status_code == 429:
+                    wait_time = 2
+                    print(f"DEBUG: Rate limited on page {page}, waiting {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    continue
+                elif response.status_code != 200:
+                    print(f"DEBUG: Error {response.status_code}: {response.text}")
+                    break
+                
+                data = response.json()
+                opportunities = data.get("opportunities", [])
+                meta = data.get("meta", {})
+                
+                if not opportunities:
+                    break
+                
+                all_opportunities.extend(opportunities)
+                
+                # Check pagination
+                current_page = meta.get("currentPage", page)
+                total = meta.get("total", 0)
+                total_pages = (total // limit) + 1
+                
+                if current_page >= total_pages:
+                    break
+                
+                page += 1
+                await asyncio.sleep(0.1)  # Rate limit protection
+                
+            except httpx.HTTPError as e:
+                print(f"DEBUG: HTTP error searching opportunities: {e}")
+                break
+        
+        return all_opportunities
+    
+    async def fetch_contact_notes(self, client: httpx.AsyncClient, contact_id: str) -> list:
+        """Fetch notes for a contact using V2 API"""
+        if not contact_id:
+            return []
+        
+        try:
+            url = f"{self.base_url}/contacts/{contact_id}/notes"
+            response = await client.get(url, headers=self.headers, timeout=self.timeout)
+            
+            if response.status_code == 429:
+                # Rate limited - wait and retry once
+                await asyncio.sleep(2)
+                response = await client.get(url, headers=self.headers, timeout=self.timeout)
+            
+            if response.status_code == 200:
+                data = response.json()
+                notes = data.get("notes", [])
+                # Sort by created date (newest first) and return bodies
+                notes_sorted = sorted(notes, key=lambda n: n.get("createdAt", ""), reverse=True)
+                return [n.get("body", "") for n in notes_sorted[:4]]
+            else:
+                print(f"DEBUG: Error fetching notes for contact {contact_id}: {response.status_code}")
+                return []
+        except Exception as e:
+            print(f"DEBUG: Exception fetching notes for contact {contact_id}: {e}")
+            return []
+    
+    @staticmethod
+    def format_opportunity(opp: dict, pipeline_name: str, stage_name: str, account_id: str, notes_list: list = []) -> dict:
+        """Format opportunity data for CSV export"""
+        contact = opp.get("contact", {})
+        
+        # Parse dates
+        def parse_date(date_str):
+            if not date_str:
+                return ""
+            try:
+                dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                return dt.strftime('%Y-%m-%d %H:%M:%S')
+            except:
+                return date_str
+        
+        # Use provided notes or empty list
+        if notes_list is None:
+            notes_list = []
+        
+        # Pad to 4 notes
+        while len(notes_list) < 4:
+            notes_list.append("")
+        
+        return {
+            'Opportunity Name': opp.get("name", ""),
+            'Contact Name': contact.get("name", ""),
+            'phone': contact.get("phone", ""),
+            'email': contact.get("email", ""),
+            'pipeline': pipeline_name,
+            'stage': stage_name,
+            'Created on': parse_date(opp.get("createdAt")),
+            'Updated on': parse_date(opp.get("updatedAt")),
+            'Opportunity ID': opp.get("id", ""),
+            'Contact ID': contact.get("id", ""),
+            'Pipeline Stage ID': opp.get("pipelineStageId", ""),
+            'Pipeline ID': opp.get("pipelineId", ""),
+            'Account Id': account_id,
+            'note1': notes_list[0] if len(notes_list) > 0 else "",
+            'note2': notes_list[1] if len(notes_list) > 1 else "",
+            'note3': notes_list[2] if len(notes_list) > 2 else "",
+            'note4': notes_list[3] if len(notes_list) > 3 else ""
+        }
 
 @router.get('/export-ghl-opportunities')
-async def export_ghl_opportunities(subaccount_ids: list = Query(...), background_tasks: BackgroundTasks = None):
+async def export_ghl_opportunities(
+    subaccount_ids: list = Query(...), 
+    background_tasks: BackgroundTasks = None
+):
     """
-    Start GHL opportunities export for selected subaccounts and return task ID.
+    Start GHL opportunities export for selected subaccounts using V2 API.
     """
-    # Validate selected subaccounts
-    selected_subs = [sub for sub in SUBACCOUNTS if str(sub['id']) in subaccount_ids]
+    # Get subaccounts with V2 credentials
+    subaccounts = settings.subaccounts_list
+    selected_subs = []
+    
+    for sub in subaccounts:
+        if str(sub.get('id')) in subaccount_ids:
+            # Check for V2 credentials
+            if sub.get('access_token') and sub.get('location_id'):
+                selected_subs.append(sub)
+            else:
+                return JSONResponse(
+                    status_code=400, 
+                    content={"error": f"Subaccount {sub.get('name', sub['id'])} missing V2 credentials (access_token or location_id)"}
+                )
+    
     if not selected_subs:
-        return JSONResponse(status_code=400, content={"error": "No valid subaccounts selected"})
+        return JSONResponse(status_code=400, content={"error": "No valid subaccounts selected with V2 credentials"})
     
     # Generate unique task ID
     task_id = str(uuid.uuid4())
@@ -89,8 +220,6 @@ async def export_ghl_opportunities(subaccount_ids: list = Query(...), background
         "total_opportunities": 0,
         "processed_opportunities": 0,
         "current_stage": "Initializing...",
-        "notes_progress": 0,
-        "total_notes": 0,
         "csv_data": None,
         "filename": "",
         "start_time": time.time(),
@@ -98,30 +227,30 @@ async def export_ghl_opportunities(subaccount_ids: list = Query(...), background
     }
     
     # Start background export
-    background_tasks.add_task(process_export, task_id, selected_subs)
+    background_tasks.add_task(process_export_v2, task_id, selected_subs)
     
-    return {"task_id": task_id, "status": "started", "message": "Export started successfully"}
+    return {"task_id": task_id, "status": "started", "message": "Export started successfully using V2 API"}
 
-async def process_export(task_id: str, selected_subs: list):
+async def process_export_v2(task_id: str, selected_subs: list):
     """
-    Background task to process the GHL export.
+    Background task to process the GHL export using V2 API.
     """
-    print(f"DEBUG: Starting export process for task {task_id}")
+    print(f"DEBUG: Starting V2 export process for task {task_id}")
     rows = []
     selected_names = []
     
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient() as client:
         total_subs = len(selected_subs)
-        subaccount_opportunities = {}  # Track opportunities per subaccount
         
         for idx, sub in enumerate(selected_subs):
-            api_key = sub.get('api_key')
+            access_token = sub.get('access_token')
+            location_id = sub.get('location_id')
             account_id = sub.get('id')
             selected_names.append(sub.get('name', str(account_id)))
             
-            print(f"DEBUG: Starting processing for subaccount {sub.get('name', str(account_id))} ({idx + 1}/{total_subs})")
-            print(f"DEBUG: Using API key: {api_key[:10]}... for subaccount {account_id}")
-            subaccount_opportunities[account_id] = 0  # Initialize counter
+            print(f"DEBUG: Processing subaccount {sub.get('name', str(account_id))} ({idx + 1}/{total_subs})")
+            print(f"DEBUG: Using location_id: {location_id}")
+            
             elapsed_time = time.time() - progress_store[task_id]["start_time"]
             progress_store[task_id].update({
                 "status": "processing",
@@ -138,200 +267,123 @@ async def process_export(task_id: str, selected_subs: list):
                 estimated_remaining = avg_time_per_subaccount * remaining_subs
                 progress_store[task_id]["estimated_time_remaining"] = estimated_remaining
             
-            # Fetch pipelines with rate limiting
-            retry_count = 0
-            max_retries = 3
-            pipelines_resp = None
+            # Create V2 client
+            ghl_client = GHLClientV2(access_token, location_id)
             
-            while retry_count < max_retries:
-                pipelines_resp = await client.get(
-                    'https://rest.gohighlevel.com/v1/pipelines/',
-                    headers={'Authorization': f'Bearer {api_key}'}
-                )
-                
-                if pipelines_resp.status_code == 429:
-                    wait_time = 2 ** retry_count
-                    progress_store[task_id]["message"] = f"Rate limited fetching pipelines, waiting {wait_time}s..."
-                    await asyncio.sleep(wait_time)
-                    retry_count += 1
-                    continue
-                elif pipelines_resp.status_code != 200:
-                    progress_store[task_id]["message"] = f"Error fetching pipelines for {sub.get('name', str(account_id))}"
-                    break
-                else:
-                    break
+            # Fetch pipelines using V2 API
+            progress_store[task_id]["current_stage"] = "Fetching pipelines..."
+            pipelines = await ghl_client.get_pipelines(client)
             
-            if not pipelines_resp or pipelines_resp.status_code != 200:
+            if not pipelines:
+                print(f"DEBUG: No pipelines found for subaccount {sub.get('name', str(account_id))}")
                 continue
-                
-            pipelines = pipelines_resp.json().get('pipelines', [])
-            print(f"DEBUG: Found {len(pipelines)} pipelines for subaccount {sub.get('name', str(account_id))}")
             
+            print(f"DEBUG: Found {len(pipelines)} pipelines")
+            
+            # Build stage mapping
+            stage_map = {}
+            pipeline_map = {}
+            for pipeline in pipelines:
+                pid = pipeline.get('id')
+                pname = pipeline.get('name')
+                pipeline_map[pid] = pname
+                for stage in pipeline.get('stages', []):
+                    stage_map[stage.get('id')] = stage.get('name')
+            
+            # Process each pipeline
             for pipeline in pipelines:
                 pipeline_id = pipeline.get('id')
                 pipeline_name = pipeline.get('name')
-                stage_map = {stage.get('id'): stage.get('name') for stage in pipeline.get('stages', [])}
                 
-                print(f"DEBUG: Processing pipeline '{pipeline_name}' for subaccount {sub.get('name', str(account_id))}")
+                progress_store[task_id]["current_stage"] = f"Searching opportunities in {pipeline_name}..."
+                print(f"DEBUG: Searching opportunities for pipeline '{pipeline_name}'")
                 
-                # Use cursor-based pagination with startAfterId and startAfter
-                all_opportunities = []
-                start_after_id = None
-                start_after = None
-                limit = 100
+                # Search opportunities using V2 API (includes notes!)
+                opportunities = await ghl_client.search_opportunities(
+                    client, 
+                    pipeline_id=pipeline_id
+                )
                 
-                while True:
-                    # Build URL with cursor pagination parameters
-                    url = f'https://rest.gohighlevel.com/v1/pipelines/{pipeline_id}/opportunities?limit={limit}'
-                    if start_after_id and start_after:
-                        url += f'&startAfterId={start_after_id}&startAfter={start_after}'
-                    
-                    opp_resp = await client.get(url, headers={'Authorization': f'Bearer {api_key}'})
-                    
-                    if opp_resp.status_code == 429:
-                        wait_time = 2
-                        print(f"DEBUG: Rate limited for pipeline {pipeline_name}, waiting {wait_time}s...")
-                        await asyncio.sleep(wait_time)
-                        continue
-                    elif opp_resp.status_code != 200:
-                        print(f"DEBUG: Error {opp_resp.status_code} for pipeline {pipeline_name}: {opp_resp.text}")
-                        progress_store[task_id]["message"] = f"Error fetching opportunities for pipeline {pipeline_name}"
-                        break
-                    
-                    # Success
-                    opp_data = opp_resp.json()
-                    opportunities = opp_data.get('opportunities', [])
-                    
-                    if not opportunities:
-                        break  # No more opportunities
-                    
-                    all_opportunities.extend(opportunities)
-                    
-                    # Check if there's a next page using meta information
-                    meta = opp_data.get('meta', {})
-                    next_page_url = meta.get('nextPageUrl')
-                    
-                    if not next_page_url:
-                        break  # No more pages
-                    
-                    # Extract pagination parameters from the last opportunity
-                    if opportunities:
-                        last_opp = opportunities[-1]
-                        start_after_id = last_opp.get('id')
-                        # Convert createdAt to timestamp if available
-                        created_at = last_opp.get('createdAt')
-                        if created_at:
-                            from datetime import datetime
-                            try:
-                                dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-                                start_after = int(dt.timestamp() * 1000)  # Convert to milliseconds
-                            except:
-                                start_after = meta.get('startAfter')
-                        else:
-                            start_after = meta.get('startAfter')
-                    
-                    print(f"DEBUG: Pipeline {pipeline_name} - fetched {len(opportunities)} opportunities (total so far: {len(all_opportunities)})")
-                    
-                    # Small delay to avoid rate limits
-                    await asyncio.sleep(0.1)
-                
-                print(f"DEBUG: Pipeline {pipeline_name} - fetched {len(all_opportunities)} opportunities")
-                progress_store[task_id]["total_opportunities"] += len(all_opportunities)
-                subaccount_opportunities[account_id] += len(all_opportunities)  # Update subaccount counter
-                
-                if not all_opportunities:
+                if not opportunities:
+                    print(f"DEBUG: No opportunities found in pipeline {pipeline_name}")
                     continue
                 
-                # Update progress for notes fetching
-                progress_store[task_id]['current_stage'] = f'Fetching notes (batch processing)...'
-                progress_store[task_id]['notes_progress'] = 0
-                progress_store[task_id]['total_notes'] = len(all_opportunities)
+                print(f"DEBUG: Found {len(opportunities)} opportunities in {pipeline_name}")
+                progress_store[task_id]["total_opportunities"] += len(opportunities)
                 
-                # Fetch all notes with controlled concurrency to avoid rate limits
-                print(f"DEBUG: Fetching notes for {len(all_opportunities)} opportunities...")
+                # Fetch notes for all opportunities in this pipeline
+                progress_store[task_id]["current_stage"] = f"Fetching notes for {len(opportunities)} opportunities from {pipeline_name}..."
                 
-                # Use semaphore to limit concurrent requests
-                semaphore = asyncio.Semaphore(10)  # Limit to 10 concurrent requests
+                # Collect unique contact IDs
+                contact_ids = []
+                opp_contact_map = {}  # Map opportunity index to contact_id
+                for i, opp in enumerate(opportunities):
+                    contact_id = opp.get('contact', {}).get('id')
+                    if contact_id and contact_id not in contact_ids:
+                        contact_ids.append(contact_id)
+                    opp_contact_map[i] = contact_id
                 
-                async def fetch_note_with_semaphore(contact_id):
+                print(f"DEBUG: Fetching notes for {len(contact_ids)} unique contacts...")
+                
+                # Fetch notes with concurrency limit
+                semaphore = asyncio.Semaphore(10)  # Max 10 concurrent requests
+                contact_notes = {}
+                
+                async def fetch_notes_with_limit(contact_id):
                     async with semaphore:
-                        return await fetch_notes(client, contact_id, api_key)
+                        notes = await ghl_client.fetch_contact_notes(client, contact_id)
+                        return contact_id, notes
                 
-                # Create tasks for all opportunities
-                note_tasks = [fetch_note_with_semaphore(opp.get('contact', {}).get('id', '')) for opp in all_opportunities]
+                # Create tasks for all contacts
+                note_tasks = [fetch_notes_with_limit(cid) for cid in contact_ids if cid]
                 
-                # Process in batches to avoid overwhelming the API
+                # Process in batches to show progress
                 batch_size = 20
-                notes_results = []
-                
                 for i in range(0, len(note_tasks), batch_size):
                     batch = note_tasks[i:i + batch_size]
-                    batch_num = i//batch_size + 1
-                    total_batches = (len(note_tasks) + batch_size - 1)//batch_size
-                    print(f"DEBUG: Processing notes batch {batch_num}/{total_batches}")
-                    
-                    # Update progress for current batch
-                    progress_store[task_id]['notes_progress'] = i
-                    progress_store[task_id]['current_stage'] = f'Fetching notes (batch {batch_num}/{total_batches})...'
                     
                     try:
-                        batch_results = await asyncio.gather(*batch, return_exceptions=True)
-                        # Handle any exceptions in the batch
-                        for j, result in enumerate(batch_results):
-                            if isinstance(result, Exception):
-                                print(f"DEBUG: Exception in batch {batch_num}, item {j}: {result}")
-                                batch_results[j] = ['', '', '', '']
-                        notes_results.extend(batch_results)
+                        batch_results = await asyncio.gather(*batch)
+                        
+                        for result in batch_results:
+                            try:
+                                cid, notes = result
+                                contact_notes[cid] = notes
+                            except Exception as e:
+                                print(f"DEBUG: Error processing notes result: {e}")
                     except Exception as e:
-                        print(f"DEBUG: Error in batch {batch_num}: {e}")
-                        # Add empty notes for failed batch
-                        notes_results.extend([['', '', '', ''] for _ in batch])
+                        print(f"DEBUG: Error in batch: {e}")
                     
-                    # Small delay between batches
-                    await asyncio.sleep(0.5)
+                    # Update progress
+                    progress_store[task_id]["current_stage"] = f"Fetched notes for {min(i + batch_size, len(note_tasks))}/{len(note_tasks)} contacts..."
+                    await asyncio.sleep(0.1)  # Brief pause between batches
                 
-                # Final progress update
-                progress_store[task_id]['notes_progress'] = len(all_opportunities)
-                progress_store[task_id]['current_stage'] = 'Notes fetching complete'
+                print(f"DEBUG: Fetched notes for {len(contact_notes)} contacts")
                 
-                print(f"DEBUG: Finished fetching notes for pipeline {pipeline_name}")
+                # Format opportunities with their notes
+                progress_store[task_id]["current_stage"] = f"Processing {len(opportunities)} opportunities from {pipeline_name}..."
                 
-                # Process all opportunities
-                for i, opp in enumerate(all_opportunities):
-                    contact = opp.get('contact', {})
+                for i, opp in enumerate(opportunities):
                     stage_id = opp.get('pipelineStageId', '')
                     stage_name = stage_map.get(stage_id, '')
-                    notes_list = notes_results[i]
+                    contact_id = opp_contact_map.get(i)
+                    notes_list = contact_notes.get(contact_id, []) if contact_id else []
                     
-                    row = {
-                        'Opportunity Name': opp.get('name', ''),
-                        'Contact Name': contact.get('name', ''),
-                        'phone': contact.get('phone', ''),
-                        'email': contact.get('email', ''),
-                        'pipeline': pipeline_name,
-                        'stage': stage_name,
-                        'Created on': opp.get('createdAt', ''),
-                        'Updated on': opp.get('updatedAt', ''),
-                        'Opportunity ID': opp.get('id', ''),
-                        'Contact ID': contact.get('id', ''),
-                        'Pipeline Stage ID': stage_id,
-                        'Pipeline ID': pipeline_id,
-                        'Account Id': account_id,
-                        'note1': notes_list[0],
-                        'note2': notes_list[1],
-                        'note3': notes_list[2],
-                        'note4': notes_list[3]
-                    }
+                    row = ghl_client.format_opportunity(opp, pipeline_name, stage_name, account_id, notes_list)
                     rows.append(row)
                     
-                    # Update processed opportunities
+                    # Update progress
                     progress_store[task_id]["processed_opportunities"] += 1
+                
+                # Small delay between pipelines
+                await asyncio.sleep(0.2)
             
-            # Small delay between subaccounts to avoid rate limits
-            print(f"DEBUG: Finished processing subaccount {sub.get('name', str(account_id))} - Total opportunities: {subaccount_opportunities[account_id]}")
-            await asyncio.sleep(1.0)
+            # Small delay between subaccounts
+            print(f"DEBUG: Finished processing subaccount {sub.get('name', str(account_id))}")
+            await asyncio.sleep(0.5)
     
     # Generate CSV
+    progress_store[task_id]["current_stage"] = "Generating CSV file..."
     df = pd.DataFrame(rows, columns=CSV_COLUMNS)
     csv_buffer = StringIO()
     df.to_csv(csv_buffer, index=False)
@@ -346,16 +398,18 @@ async def process_export(task_id: str, selected_subs: list):
     
     # Update progress as completed
     total_time = time.time() - progress_store[task_id]["start_time"]
-    print(f"DEBUG: Export completed - Total rows: {len(rows)}, Total opportunities: {progress_store[task_id]['total_opportunities']}")
+    print(f"DEBUG: V2 Export completed - Total rows: {len(rows)}")
+    
     progress_store[task_id].update({
         "status": "completed",
         "progress": 100,
-        "message": f"Export completed! Processed {len(rows)} opportunities in {total_time:.1f} seconds.",
+        "message": f"Export completed! Processed {len(rows)} opportunities in {total_time:.1f} seconds (V2 API).",
         "completed_subaccounts": total_subs,
         "csv_data": csv_buffer.getvalue(),
         "filename": filename,
         "total_time": total_time,
-        "estimated_time_remaining": 0
+        "estimated_time_remaining": 0,
+        "current_stage": "Complete"
     })
 
 @router.get('/export-progress/{task_id}')
