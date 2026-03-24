@@ -91,7 +91,7 @@ async def startup_event():
 # Configure templates and static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Create templates
+# Create templates - use simple configuration for production
 template_dir = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=template_dir)
 
